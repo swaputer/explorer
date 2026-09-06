@@ -149,7 +149,7 @@ export const EMPTY_CONTRACT = `contract MyContract {
 `;
 
 export async function compileStudioSource(source: string, fileName: string): Promise<StudioBuild> {
-  const compiler = await import("@swaputer/tinysol");
+  const compiler = await import("@swaputer-labs/tinysol");
   const result = compiler.compileTinySol(source, { sourceName: fileName });
   return Object.freeze({
     contractName: result.abi.contract,
@@ -176,7 +176,7 @@ export async function compileStudioSource(source: string, fileName: string): Pro
 }
 
 export async function formatStudioError(error: unknown): Promise<string> {
-  const compiler = await import("@swaputer/tinysol");
+  const compiler = await import("@swaputer-labs/tinysol");
   return compiler.formatDiagnostics(error) || "COMPILATION_FAILED";
 }
 

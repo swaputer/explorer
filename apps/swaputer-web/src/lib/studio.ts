@@ -130,7 +130,7 @@ function signatureTypes(signature: string, prefix: string): readonly string[] {
 }
 
 export async function compileStudioSource(source: string, fileName: string): Promise<StudioBuild> {
-  const compiler = await import("@swaputer/tinysol");
+  const compiler = await import("@swaputer-labs/tinysol");
   const result = compiler.compileTinySol(source, { sourceName: fileName });
   return Object.freeze({
     contractName: result.abi.contract,
@@ -173,6 +173,6 @@ export function parseScalar(type: string, value: string): unknown {
 
 export async function formatStudioError(error: unknown): Promise<string> {
   if (error instanceof Error && !("code" in error)) return error.message;
-  const compiler = await import("@swaputer/tinysol");
+  const compiler = await import("@swaputer-labs/tinysol");
   return compiler.formatDiagnostics(error) || (error instanceof Error ? error.message : "Compilation failed.");
 }
