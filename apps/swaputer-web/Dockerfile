@@ -21,9 +21,13 @@ COPY apps/swaputer-web/ ./apps/swaputer-web/
 ARG VITE_RPC_URL
 ARG VITE_SVM_API_URL=/api
 ARG VITE_DOCS_URL=https://docs.swaputer.xyz
+ARG VITE_COMPUTER_URL
+ARG VITE_STUDIO_URL
 ENV VITE_RPC_URL=$VITE_RPC_URL \
     VITE_SVM_API_URL=$VITE_SVM_API_URL \
-    VITE_DOCS_URL=$VITE_DOCS_URL
+    VITE_DOCS_URL=$VITE_DOCS_URL \
+    VITE_COMPUTER_URL=$VITE_COMPUTER_URL \
+    VITE_STUDIO_URL=$VITE_STUDIO_URL
 RUN npm run build --prefix apps/swaputer-web
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine

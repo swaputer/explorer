@@ -11,17 +11,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@codemirror/commands": "^6.10.1",
-    "@codemirror/language": "^6.12.4",
-    "@codemirror/state": "^6.7.1",
-    "@codemirror/view": "^6.43.9",
     "@fontsource-variable/inter": "5.3.0",
-    "@lezer/highlight": "^1.2.3",
+    "@lucide/vue": "1.37.0",
     "@noble/hashes": "^1.7.1",
-    "@swaputer-labs/tinysol": "file:../../tooling/tinysol",
     "buffer": "^6.0.3",
     "ethers": "6.17.0",
-    "@lucide/vue": "1.37.0",
     "vue": "3.5.42",
     "vue-router": "4.6.4"
   },

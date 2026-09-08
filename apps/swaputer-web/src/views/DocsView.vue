@@ -2,6 +2,9 @@
 import { ArrowUpRight } from "@lucide/vue";
 import { RouterLink } from "vue-router";
 import AppFooter from "@/components/AppFooter.vue";
+import { studioAppURL } from "@/lib/studioApp";
+
+const studio = studioAppURL();
 </script>
 
 <template>
@@ -87,7 +90,7 @@ import AppFooter from "@/components/AppFooter.vue";
             <article><span>01</span><h3>Bridge</h3><p>原生 ETH 可以沿着明确的 1:1 规则进入 SVM，成为 sETH。桥将抵押、铸造与赎回放进同一套可验证的约束中，让原生价值获得参与程序世界的入口。</p><RouterLink to="/bridge">体验 Bridge <ArrowUpRight :size="14" aria-hidden="true" /></RouterLink></article>
             <article><span>02</span><h3>SRC20</h3><p>同质化资产的名称、供应、铸造与转移行为由 SVM 程序定义。SRC20 是参考实现，而不是 Kernel 的特殊分支：未来的资产标准也可以沿同一条路径被创造。</p><RouterLink to="/contracts">查看合约 <ArrowUpRight :size="14" aria-hidden="true" /></RouterLink></article>
             <article><span>03</span><h3>Market</h3><p>买卖意愿、订单与成交在统一结算中相遇。市场不需要替资产创造一套新的账本，而是直接读取并调用它的程序规则，使任何 SRC20 都能形成自己的开放市场。</p><RouterLink to="/market">进入 Market <ArrowUpRight :size="14" aria-hidden="true" /></RouterLink></article>
-            <article><span>04</span><h3>Studio</h3><p>新的资产机制、协作方式与应用逻辑，都可以被写成迷你合约并部署到 SVM。Studio 让协议从一组已知应用，变成一个可以持续产生新应用的创作环境。</p><RouterLink to="/studio">探索 Studio <ArrowUpRight :size="14" aria-hidden="true" /></RouterLink></article>
+            <article><span>04</span><h3>Studio</h3><p>新的资产机制、协作方式与应用逻辑，都可以被写成迷你合约并部署到 SVM。Studio 让协议从一组已知应用，变成一个可以持续产生新应用的创作环境。</p><a v-if="studio" :href="studio">探索 Studio <ArrowUpRight :size="14" aria-hidden="true" /></a><RouterLink v-else to="/studio">探索 Studio <ArrowUpRight :size="14" aria-hidden="true" /></RouterLink></article>
           </div>
           <p class="docs-use-case-note">这些只是开始。协议不决定什么应用值得出现；它负责让每一种新的规则，都拥有清楚的执行方式与可验证的结果。</p>
         </section>
@@ -155,7 +158,8 @@ import AppFooter from "@/components/AppFooter.vue";
             <p>
               Studio 将这条流程带到浏览器中：编写后即可编译、检查构造参数、部署，并对已部署程序发起调用。对于自动化工作流，TinySol 命令行同样可以产出相同的确定性工件。
             </p>
-            <RouterLink class="docs-inline-link" to="/studio">打开 Studio <ArrowUpRight :size="14" aria-hidden="true" /></RouterLink>
+            <a v-if="studio" class="docs-inline-link" :href="studio">打开 Studio <ArrowUpRight :size="14" aria-hidden="true" /></a>
+            <RouterLink v-else class="docs-inline-link" to="/studio">打开 Studio <ArrowUpRight :size="14" aria-hidden="true" /></RouterLink>
           </div>
 
           <div class="docs-dev-block" id="calling">

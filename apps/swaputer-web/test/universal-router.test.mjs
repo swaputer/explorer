@@ -242,10 +242,8 @@ test("executor-bound envelopes are still signed for the custom Swaputer Router",
   assert.equal(capture.execute, null);
 });
 
-test("market and bridge callers explicitly retain the executor-bound route", () => {
-  const marketSource = readFileSync(new URL("../src/lib/market.ts", import.meta.url), "utf8");
+test("shared protocol helpers retain the executor-bound route", () => {
   const protocolSource = readFileSync(new URL("../src/lib/protocol.ts", import.meta.url), "utf8");
-  assert.equal((marketSource.match(/executionRoute: "swaputer-router"/g) ?? []).length, 4);
   assert.match(protocolSource, /executionRoute: "swaputer-router"/);
   assert.doesNotMatch(protocolSource, /getFunction\("buyVMExactInput"\)/);
   assert.match(protocolSource, /new Contract\(SWAPVM\.universalRouter, UNIVERSAL_ROUTER_ABI, signer\)/);

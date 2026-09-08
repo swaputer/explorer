@@ -1,13 +1,12 @@
 # Swaputer Explorer
 
-Private product repository for the Swaputer Explorer, Studio, Minter, Bridge,
-Market, production Go indexer, REST API, and WebSocket feed. Swaputer does not
-have a separate marketing website; these user surfaces live in
-`apps/swaputer-web`.
+Swaputer protocol explorer, Go indexer, REST API and WebSocket feed.
+TinySol Studio is an independent online frontend. Mint, Market and Bridge are applications in the standalone `computer` frontend.
+Set `VITE_COMPUTER_URL` and `VITE_STUDIO_URL` when building the explorer to enable its app links and
+forward legacy application URLs.
 
 - `apps/swaputer-web` — primary Vue product UI.
 - `services/svm-indexer` — production Go indexer and public API.
-- `apps/mint-ui` — legacy React implementation reference.
 
 The private `swaputer/protocol` submodule supplies the pinned active deployment,
 protocol sources, specifications, and recursive tooling dependency required by
@@ -22,6 +21,4 @@ npm run build --prefix apps/swaputer-web
 (cd services/svm-indexer && go test ./...)
 ```
 
-This repository was split from private monorepo commit
-`c9c8bb269e9dfd112d2dad78726a9db516940462` on September 6, 2026. Licensed
-under the MIT License.
+Licensed under the MIT License.

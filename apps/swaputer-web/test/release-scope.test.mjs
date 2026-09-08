@@ -21,7 +21,6 @@ test("mainnet and unknown environments fail closed to the Stage 7M interface sco
   for (const environment of ["mainnet", "production", ""]) {
     assert.deepEqual(resolveOfficialFeatureScope(environment), {
       explorer: true,
-      studio: true,
       openMintMinter: true,
       market: false,
       seth: false,
@@ -30,11 +29,14 @@ test("mainnet and unknown environments fail closed to the Stage 7M interface sco
   }
 });
 
-test("router and header enforce the same application gates", () => {
+test("legacy app links retain release gates and the header links to standalone applications", () => {
   assert.match(routerSource, /OFFICIAL_FEATURES\.market/);
   assert.match(routerSource, /OFFICIAL_FEATURES\.seth/);
-  assert.match(headerSource, /v-if="OFFICIAL_FEATURES\.market"/);
-  assert.match(headerSource, /v-if="OFFICIAL_FEATURES\.seth"/);
+  assert.match(routerSource, /component: ComputerRedirectView/);
+  assert.match(routerSource, /component: StudioRedirectView/);
+  assert.match(headerSource, /computerAppURL/);
+  assert.match(headerSource, /studioAppURL/);
+  assert.doesNotMatch(headerSource, /to="\/(minter|market|bridge)"/);
 });
 
 test("machine-readable candidate scope matches the web feature gate", () => {
@@ -42,7 +44,7 @@ test("machine-readable candidate scope matches the web feature gate", () => {
   const excluded = new Set(candidateScope.excludedMainnetApplications.map((item) => item.id));
   const scope = resolveOfficialFeatureScope("mainnet");
   assert.equal(included.has("explorer"), scope.explorer);
-  assert.equal(included.has("studio"), scope.studio);
+  assert.equal(included.has("studio"), true);
   assert.equal(included.has("open-mint-minter"), scope.openMintMinter);
   assert.equal(excluded.has("src20-market"), !scope.market);
   assert.equal(excluded.has("seth"), !scope.seth);

@@ -1,6 +1,5 @@
 export interface OfficialFeatureScope {
   readonly explorer: true;
-  readonly studio: true;
   readonly openMintMinter: true;
   readonly market: boolean;
   readonly seth: boolean;
@@ -17,7 +16,6 @@ export function resolveOfficialFeatureScope(environment: string): Readonly<Offic
   const applicationTestEnvironment = environment === "local" || environment === "testnet";
   return Object.freeze({
     explorer: true,
-    studio: true,
     openMintMinter: true,
     market: applicationTestEnvironment,
     seth: applicationTestEnvironment,

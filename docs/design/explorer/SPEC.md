@@ -18,8 +18,8 @@ truth for Explorer, transaction, address and SRC20 detail surfaces.
 - Body/control text: 12–14px with explicit line heights.
 - Table rows: 42–44px.
 - Radius: 0–4px. No shadows, gradients or glass effects.
-- Standard product pages use a centered 1200px container. Studio remains
-  full-width.
+- Explorer pages use a centered 1200px container. Studio has its own design
+  specification in the standalone `swaputer/studio` repository.
 
 ## Container and components
 
@@ -31,11 +31,11 @@ truth for Explorer, transaction, address and SRC20 detail surfaces.
 - Search, tabs, pagination and disclosure controls use squared border-led
   geometry and 12–14px UI text.
 - Responsive pages keep the same hierarchy. Tables scroll horizontally below
-  760px; Studio remains hidden on mobile.
+  760px.
 
 ## Visible copy lock
 
-- Header: `Bridge`, `SRC20`, `Market`, `Explorer`, `Studio`.
+- Header: `Overview`, `Contracts`, `Studio`, `Computer`.
 - Explorer: search placeholder `Search transaction hash, address or SVM
   account`, `Search`, `Recent SVM transactions`, `Latest Events`.
 - Transaction: `Explorer`, `Transaction`, `SVM execution`, `Events`, `Raw
