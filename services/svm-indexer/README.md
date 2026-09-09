@@ -9,13 +9,16 @@ and Events; the decoder listens for the on-chain `Events` event.
 From the repository root:
 
 ```sh
-docker compose -f infra/local/compose.yaml up -d
-go run ./services/svm-indexer/cmd/server
+git submodule update --init --recursive
+cp services/svm-indexer/.env.example services/svm-indexer/.env.local
+(cd services/svm-indexer && go run ./cmd/server)
 ```
 
 The service automatically reads `services/svm-indexer/.env.local`. Copy
-`.env.example` when setting up another machine. Never commit a real provider
-credential.
+`.env.example` when setting up another machine, then configure PostgreSQL and
+RPC endpoints. Never commit a real provider credential. The production image is
+network-neutral: mount a deployment manifest and set `SVM_DEPLOYMENT_MANIFEST`
+at runtime.
 
 Endpoints currently available:
 
@@ -26,14 +29,20 @@ Endpoints currently available:
 - `GET /v1/events`
 - `GET /v1/transactions`
 - `GET /v1/transactions/{transactionHash}`
+- `GET /v1/addresses/{account}`
 - `GET /v1/addresses/{account}/transactions`
+- `GET /v1/addresses/{account}/balances`
 - `GET /v1/contracts?standard=all|src20|unclassified`
 - `GET /v1/contracts/{programId}`
 - `GET /v1/contracts/{programId}/transactions`
+- `GET /v1/src20`
+- `GET /v1/src20/{programId}`
 - `GET /v1/src20/{programId}/holders`
 - `GET /v1/src20/{programId}/transfers`
 - `GET /v1/minter/src20`
 - `GET /v1/minter/src20/{programId}`
+- `GET /v1/market`
+- `GET /v1/market/{programId}`
 - `GET /v1/market/{programId}/orders`
 - `GET /v1/market/{programId}/trades`
 - `GET /v1/ws`

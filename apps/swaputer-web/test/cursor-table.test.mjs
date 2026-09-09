@@ -44,7 +44,7 @@ test("failed navigation retains the previous page and allows retry", async () =>
   assert.equal(table.page, 2);
 });
 
-test("reset invalidates slow results from a previous side, route or wallet", async () => {
+test("reset invalidates slow results from a previous route or query", async () => {
   let resolve;
   let old = true;
   const table = useCursorTable(() => old ? new Promise(r => { resolve = r; }) : Promise.resolve({ items: ["new"] }), assert.fail);

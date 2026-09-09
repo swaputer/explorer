@@ -152,7 +152,6 @@ func (p *HTTPPool) recordFailure() {
 
 func withHTTPFailover[T any](p *HTTPPool, ctx context.Context, operation func(context.Context, *ethclient.Client) (T, error)) (T, error) {
 	var zero T
-	var lastErr error
 	start := p.startIndex()
 	for offset := 0; offset < len(p.urls); offset++ {
 		index := (start + offset) % len(p.urls)
@@ -169,13 +168,15 @@ func withHTTPFailover[T any](p *HTTPPool, ctx context.Context, operation func(co
 			p.invalidate(index, client)
 		}
 		cancel()
-		lastErr = err
 		p.recordFailure()
 		if p.logger != nil {
 			p.logger.Printf("HTTP RPC endpoint %d/%d failed; trying next endpoint", index+1, len(p.urls))
 		}
 	}
-	return zero, fmt.Errorf("all HTTP RPC endpoints failed: %w", lastErr)
+	// Provider URLs routinely contain credentials in their path or query. Some
+	// transport errors include the complete request URL, so never propagate the
+	// underlying error beyond this trust boundary.
+	return zero, errors.New("all HTTP RPC endpoints failed")
 }
 
 func (p *HTTPPool) BlockNumber(ctx context.Context) (uint64, error) {

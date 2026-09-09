@@ -1,5 +1,3 @@
-import { formatUnits } from "ethers";
-
 export function compactHash(value?: string | null, start = 8, end = 6): string {
   if (!value) return "—";
   if (value.length <= start + end + 1) return value;
@@ -30,11 +28,19 @@ export function integer(value: string | number | bigint): string {
 export function tokenAmount(value: string | bigint, decimals = 18, fraction = 6): string {
   try {
     const amount = BigInt(value);
-    const formatted = formatUnits(amount, decimals);
-    const [whole = "0", decimal = ""] = formatted.split(".");
-    const grouped = BigInt(whole).toLocaleString("en-US");
+    if (!Number.isSafeInteger(decimals) || decimals < 0 || decimals > 255) return "—";
+    if (!Number.isSafeInteger(fraction) || fraction < 0 || fraction > 100) return "—";
+
+    const negative = amount < 0n;
+    const absolute = negative ? -amount : amount;
+    const scale = 10n ** BigInt(decimals);
+    const whole = absolute / scale;
+    const decimal = decimals === 0 ? "" : (absolute % scale).toString().padStart(decimals, "0");
+    const grouped = `${negative ? "-" : ""}${whole.toLocaleString("en-US")}`;
     const trimmed = decimal.slice(0, fraction).replace(/0+$/, "");
-    if (!trimmed && amount !== 0n && whole === "0" && fraction > 0) return `<0.${"0".repeat(fraction - 1)}1`;
+    if (!trimmed && absolute !== 0n && whole === 0n && fraction > 0) {
+      return `${negative ? "-" : ""}<0.${"0".repeat(fraction - 1)}1`;
+    }
     return trimmed ? `${grouped}.${trimmed}` : grouped;
   } catch {
     return "—";

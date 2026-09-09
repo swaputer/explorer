@@ -1,0 +1,63 @@
+name: Explorer CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: explorer-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "true"
+      NPM_CONFIG_FUND: "false"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.21.0
+          cache: npm
+          cache-dependency-path: apps/swaputer-web/package-lock.json
+      - name: Install exact dependencies
+        run: npm ci --prefix apps/swaputer-web
+      - name: Audit production dependencies
+        run: npm audit --prefix apps/swaputer-web --omit=dev --audit-level=high
+      - name: Test, type-check, and build
+        run: |
+          npm test --prefix apps/swaputer-web
+          npm run typecheck --prefix apps/swaputer-web
+          npm run build --prefix apps/swaputer-web
+      - name: Build production web image
+        run: docker build --file apps/swaputer-web/Dockerfile --tag swaputer-explorer-web:verify .
+
+  indexer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: services/svm-indexer/go.mod
+          cache-dependency-path: services/svm-indexer/go.sum
+      - name: Verify, test, and vet
+        working-directory: services/svm-indexer
+        run: |
+          go mod download
+          go mod verify
+          go test -race ./...
+          go vet ./...
+          go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+      - name: Build production indexer image
+        run: docker build --file services/svm-indexer/Dockerfile --tag swaputer-svm-indexer:verify .

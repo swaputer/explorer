@@ -1,8 +1,12 @@
-import { id } from "ethers";
 import { tokenAmount } from "./format";
 import { subscribeExplorerRealtime } from "./realtime";
 
-export const EXPLORER_API = String(import.meta.env.VITE_SVM_API_URL || "http://127.0.0.1:8080").replace(/\/$/, "");
+const TRANSFER_TOPIC = "0xbc7a322f72742a0c810e1f76615f57ed3a5bbfcbd956d3d451b3158968faace9";
+const APPROVAL_TOPIC = "0xf6d2c55c8d7458b3b22f5534fd41ebe91e2a7da94922c17c1fe9e4d209dca04a";
+
+export const EXPLORER_API = String(
+  import.meta.env.VITE_SVM_API_URL || (import.meta.env.DEV ? "http://127.0.0.1:8080" : "/api")
+).replace(/\/+$/, "");
 
 export interface IndexerStatus {
   chainId: number;
@@ -153,53 +157,6 @@ export interface TransferDetail {
   finalized: boolean;
 }
 
-export interface MarketSummary {
-  programId: string;
-  marketAddress: string;
-  escrowId: string;
-  name: string;
-  symbol: string;
-  decimals: number;
-  bestBidWei?: string;
-  bestAskWei?: string;
-  openOrders: number;
-  lastTradeTime?: string;
-}
-
-export interface MarketOrder {
-  orderId: string;
-  programId: string;
-  marketAddress: string;
-  side: "buy" | "sell";
-  status: "open" | "filled" | "cancelled" | "expired";
-  maker: string;
-  taker?: string;
-  amount: string;
-  unitPriceWei: string;
-  priceWei: string;
-  vmEthAmount: string;
-  expiry: number;
-  blockNumber: number;
-  transactionHash: string;
-  finalized: boolean;
-}
-
-export interface MarketTrade {
-  orderId: string;
-  programId: string;
-  marketAddress: string;
-  side: "buy" | "sell";
-  seller: string;
-  buyer: string;
-  amount: string;
-  priceWei: string;
-  unitPriceWei: string;
-  blockNumber: number;
-  blockTime: string;
-  transactionHash: string;
-  finalized: boolean;
-}
-
 type Items<T> = { items: T[] };
 export type CursorPage<T> = Items<T> & { nextCursor?: string };
 type SearchResult = { type: "transaction" | "address" | "contract"; route: string };
@@ -241,12 +198,6 @@ export const explorerApi = {
   },
   tokens: (limit = 50) => get<Items<TokenSummary>>(`/v1/src20?limit=${limit}`).then((value) => value.items),
   token: (program: string) => get<TokenSummary>(`/v1/src20/${encodeURIComponent(program)}`),
-  openMintTokens: (limit = 50, cursor?: string) => {
-    const params = new URLSearchParams({ limit: String(limit) });
-    if (cursor) params.set("cursor", cursor);
-    return get<CursorPage<TokenSummary>>(`/v1/minter/src20?${params}`);
-  },
-  openMintToken: (program: string) => get<TokenSummary>(`/v1/minter/src20/${encodeURIComponent(program)}`),
   holders: (program: string, limit = 50, cursor?: string) => {
     const params = new URLSearchParams({ limit: String(limit) });
     if (cursor) params.set("cursor", cursor);
@@ -256,22 +207,6 @@ export const explorerApi = {
     const params = new URLSearchParams({ limit: String(limit) });
     if (cursor) params.set("cursor", cursor);
     return get<CursorPage<TransferDetail>>(`/v1/src20/${encodeURIComponent(program)}/transfers?${params}`);
-  },
-  markets: (limit = 100) => get<Items<MarketSummary>>(`/v1/market?limit=${limit}`).then((value) => value.items),
-  market: (program: string) => get<MarketSummary>(`/v1/market/${encodeURIComponent(program)}`),
-  marketOrders: (program: string, options: { status?: string; side?: string; maker?: string; limit?: number; cursor?: string } = {}) => {
-    const params = new URLSearchParams();
-    if (options.status) params.set("status", options.status);
-    if (options.side) params.set("side", options.side);
-    if (options.maker) params.set("maker", options.maker);
-    if (options.cursor) params.set("cursor", options.cursor);
-    params.set("limit", String(options.limit ?? 100));
-    return get<CursorPage<MarketOrder>>(`/v1/market/${encodeURIComponent(program)}/orders?${params}`);
-  },
-  marketTrades: (program: string, limit = 100, cursor?: string) => {
-    const params = new URLSearchParams({ limit: String(limit) });
-    if (cursor) params.set("cursor", cursor);
-    return get<CursorPage<MarketTrade>>(`/v1/market/${encodeURIComponent(program)}/trades?${params}`);
   },
   search: (query: string) => get<SearchResult>(`/v1/search?q=${encodeURIComponent(query)}`)
 };
@@ -310,7 +245,7 @@ export function formatUnitsExact(value: string, decimals: number, precision = 6)
 
 export function eventName(event: EventDetail): string {
   const topic = event.topics[0]?.toLowerCase();
-  if (topic === id("Transfer(bytes32,bytes32,uint256)").toLowerCase()) return "Transfer";
-  if (topic === id("Approval(bytes32,bytes32,uint256)").toLowerCase()) return "Approval";
+  if (topic === TRANSFER_TOPIC) return "Transfer";
+  if (topic === APPROVAL_TOPIC) return "Approval";
   return event.kind === "application" ? "ApplicationEvent" : event.kind;
 }

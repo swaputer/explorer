@@ -20,6 +20,7 @@ async function submit() {
   try {
     const result = await explorerApi.search(value);
     await router.push(result.route);
+    query.value = "";
   } catch {
     toast.error("No SVM transaction, address or SRC20 contract found.");
   } finally {
@@ -31,10 +32,10 @@ async function submit() {
 <template>
   <form :class="['explorer-search', { 'explorer-search--compact': props.compact }]" role="search" @submit.prevent="submit">
     <label class="sr-only" for="explorer-query">Search the SVM protocol</label>
-    <input id="explorer-query" v-model="query" autocomplete="off" spellcheck="false" :placeholder="props.placeholder" />
-    <button type="submit" :disabled="loading" aria-label="Search">
-      <LoaderCircle v-if="loading" class="spin" :size="17" />
-      <Search v-else :size="17" aria-hidden="true" />
+    <button class="explorer-search__leading" type="submit" :disabled="loading" aria-label="Search">
+      <LoaderCircle v-if="loading" class="spin" :size="16" aria-hidden="true" />
+      <Search v-else :size="16" aria-hidden="true" />
     </button>
+    <input id="explorer-query" v-model="query" type="search" autocomplete="off" spellcheck="false" :placeholder="props.placeholder" />
   </form>
 </template>

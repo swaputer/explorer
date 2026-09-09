@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
+import { DOCS_URL } from "@/lib/links";
 
-const docsUrl = import.meta.env.VITE_DOCS_URL || (import.meta.env.DEV ? "http://127.0.0.1:4175/" : "https://docs.swaputer.xyz");
-onMounted(() => window.location.replace(docsUrl));
+onMounted(() => window.location.replace(DOCS_URL));
 </script>
 
 <template>
-  <main class="page"><p class="protocol-loading protocol-loading--page">正在打开 <a :href="docsUrl">Swaputer Docs</a>…</p></main>
+  <main class="page"><p class="protocol-loading protocol-loading--page">Opening <a :href="DOCS_URL">Swaputer Docs</a>…</p></main>
 </template>

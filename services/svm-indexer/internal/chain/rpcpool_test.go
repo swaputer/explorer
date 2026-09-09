@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -72,5 +73,23 @@ func TestHTTPPoolRejectsWrongChainFallback(t *testing.T) {
 	if err == nil {
 		pool.Close()
 		t.Fatal("expected wrong-chain endpoint to fail")
+	}
+}
+
+func TestHTTPPoolDoesNotExposeProviderCredentials(t *testing.T) {
+	const credential = "provider-secret-must-not-appear"
+	pool, err := NewHTTPPool(
+		context.Background(),
+		[]string{"http://127.0.0.1:1/rpc/" + credential + "?api_key=" + credential},
+		84532,
+		50*time.Millisecond,
+		nil,
+	)
+	if err == nil {
+		pool.Close()
+		t.Fatal("expected unreachable provider to fail")
+	}
+	if strings.Contains(err.Error(), credential) {
+		t.Fatal("RPC error exposed provider credentials")
 	}
 }
