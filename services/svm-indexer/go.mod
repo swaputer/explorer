@@ -2,6 +2,8 @@ module github.com/swaputer/explorer/services/svm-indexer
 
 go 1.25.0
 
+toolchain go1.25.14
+
 require (
 	github.com/coder/websocket v1.8.15
 	github.com/ethereum/go-ethereum v1.17.5
