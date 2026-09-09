@@ -20,7 +20,7 @@ func TestDecodeFrozenFixtures(t *testing.T) {
 		name := name
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			path := filepath.Join("..", "..", "..", "..", "tooling", "receipt-codec", "fixtures", name+".json")
+			path := filepath.Join("testdata", name+".json")
 			raw, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatal(err)
