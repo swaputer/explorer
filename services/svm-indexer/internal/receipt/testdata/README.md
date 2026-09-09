@@ -2,7 +2,7 @@
 
 These six JSON files are vendored byte-for-byte from
 `tooling/receipt-codec/fixtures/*.json` in the Swaputer Tooling source tree at
-commit `de107b1e3829397c6b8e248a86b3e5e1b1d7dd3b`. The Explorer repository pins
+commit `5548a84b25dfee61d2e52f80390f9ee516bea739`. The Explorer repository pins
 that source revision through its recursive dependency checkout.
 
 The published `@swaputer-labs/receipt-codec@0.1.2` tarball does not contain
