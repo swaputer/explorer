@@ -12,6 +12,9 @@ The private `swaputer/protocol` submodule supplies the pinned active deployment
 and protocol data used by the indexer. Clone recursively when working on the
 complete Explorer stack:
 
+Requires Node.js 22.12 or later for the web application. The indexer uses the
+Go version pinned in `services/svm-indexer/go.mod`.
+
 ```sh
 git clone --recurse-submodules https://github.com/swaputer/explorer.git
 cd explorer
