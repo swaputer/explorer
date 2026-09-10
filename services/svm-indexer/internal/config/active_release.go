@@ -54,11 +54,6 @@ type activeRelease struct {
 	Applications struct {
 		MarketFactory   string `json:"marketFactory"`
 		ReferenceMarket string `json:"referenceMarket"`
-		AuctionExample  *struct {
-			Factory        string `json:"factory"`
-			EscrowCodeHash string `json:"escrowCodeHash"`
-			Indexed        bool   `json:"indexed"`
-		} `json:"auctionExample,omitempty"`
 	} `json:"applications"`
 	Indexer struct {
 		Confirmations     uint64 `json:"confirmations"`
@@ -130,19 +125,6 @@ func loadActiveRelease() (activeRelease, error) {
 	}
 	if release.Upstream.UniswapV4.PoolFee != 3_000 || release.Upstream.UniswapV4.TickSpacing != 60 {
 		return activeRelease{}, errors.New("active deployment manifest contains unsupported Uniswap v4 pool parameters")
-	}
-	if release.Applications.AuctionExample != nil {
-		auction := release.Applications.AuctionExample
-		if !common.IsHexAddress(auction.Factory) || common.HexToAddress(auction.Factory) == (common.Address{}) {
-			return activeRelease{}, errors.New("active deployment manifest contains an invalid auction example address")
-		}
-		decoded, err := hexutil.Decode(auction.EscrowCodeHash)
-		if err != nil || len(decoded) != common.HashLength || common.BytesToHash(decoded) == (common.Hash{}) {
-			return activeRelease{}, errors.New("active deployment manifest contains an invalid auction example hash")
-		}
-		if auction.Indexed {
-			return activeRelease{}, errors.New("auction example must not be indexed")
-		}
 	}
 	for _, value := range []string{
 		release.Upstream.UniswapV4.RuntimeCodeHashes.PoolManager,

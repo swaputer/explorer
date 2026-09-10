@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func writeActiveReleaseFixture(t *testing.T, auction string, transform func(string) string) string {
+func writeActiveReleaseFixture(t *testing.T, transform func(string) string) string {
 	t.Helper()
 	address := "0x" + strings.Repeat("11", 20)
 	hash := "0x" + strings.Repeat("22", 32)
@@ -23,10 +23,10 @@ func writeActiveReleaseFixture(t *testing.T, auction string, transform func(stri
   }},
   "core":{"worldId":%[2]q,"kernel":%[1]q,"startBlock":1},
   "programs":{"defaultSrc20":{"codeHash":%[2]q},"openMintSrc20CodeHash":%[2]q,"seth":{"codeHash":%[2]q}},
-  "applications":{"marketFactory":%[1]q,"referenceMarket":%[1]q%[3]s},
+  "applications":{"marketFactory":%[1]q,"referenceMarket":%[1]q},
   "indexer":{"confirmations":1,"reorgDepth":1,"backfillBatch":1,"reconcileInterval":"1s"},
   "integrity":{"manifestHash":%[2]q}
-}`, address, hash, auction)
+}`, address, hash)
 	if transform != nil {
 		manifest = transform(manifest)
 	}
@@ -37,8 +37,8 @@ func writeActiveReleaseFixture(t *testing.T, auction string, transform func(stri
 	return path
 }
 
-func TestLoadActiveReleaseWithoutAuction(t *testing.T) {
-	t.Setenv("SVM_DEPLOYMENT_MANIFEST", writeActiveReleaseFixture(t, "", nil))
+func TestLoadActiveRelease(t *testing.T) {
+	t.Setenv("SVM_DEPLOYMENT_MANIFEST", writeActiveReleaseFixture(t, nil))
 	release, err := loadActiveRelease()
 	if err != nil {
 		t.Fatalf("load active release: %v", err)
@@ -46,44 +46,13 @@ func TestLoadActiveReleaseWithoutAuction(t *testing.T) {
 	if release.Release.Name != "swaputer-v1.2-rc4" {
 		t.Fatalf("unexpected release %q", release.Release.Name)
 	}
-	if release.Applications.AuctionExample != nil {
-		t.Fatal("auction example should be optional")
-	}
 	if release.Upstream.UniswapV4.PoolFee != 3_000 || release.Upstream.UniswapV4.TickSpacing != 60 {
 		t.Fatal("unexpected Uniswap v4 pool parameters")
 	}
 }
 
-func TestLoadActiveReleaseWithUnindexedAuction(t *testing.T) {
-	auction := fmt.Sprintf(
-		`,"auctionExample":{"factory":%q,"escrowCodeHash":%q,"indexed":false}`,
-		"0x"+strings.Repeat("33", 20),
-		"0x"+strings.Repeat("44", 32),
-	)
-	t.Setenv("SVM_DEPLOYMENT_MANIFEST", writeActiveReleaseFixture(t, auction, nil))
-	release, err := loadActiveRelease()
-	if err != nil {
-		t.Fatalf("load active release: %v", err)
-	}
-	if release.Applications.AuctionExample == nil {
-		t.Fatal("optional auction example was not decoded")
-	}
-}
-
-func TestIndexedAuctionFailsClosed(t *testing.T) {
-	auction := fmt.Sprintf(
-		`,"auctionExample":{"factory":%q,"escrowCodeHash":%q,"indexed":true}`,
-		"0x"+strings.Repeat("33", 20),
-		"0x"+strings.Repeat("44", 32),
-	)
-	t.Setenv("SVM_DEPLOYMENT_MANIFEST", writeActiveReleaseFixture(t, auction, nil))
-	if _, err := loadActiveRelease(); err == nil || !strings.Contains(err.Error(), "must not be indexed") {
-		t.Fatalf("expected indexed auction to be rejected, got %v", err)
-	}
-}
-
 func TestUnsupportedUniswapPoolParametersFailClosed(t *testing.T) {
-	path := writeActiveReleaseFixture(t, "", func(manifest string) string {
+	path := writeActiveReleaseFixture(t, func(manifest string) string {
 		return strings.Replace(manifest, `"poolFee":3000`, `"poolFee":500`, 1)
 	})
 	t.Setenv("SVM_DEPLOYMENT_MANIFEST", path)
