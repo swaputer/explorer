@@ -22,7 +22,7 @@ async function submit() {
     await router.push(result.route);
     query.value = "";
   } catch {
-    toast.error("No SVM transaction, address or SRC20 contract found.");
+    toast.error("No transaction, SVM account, or program found.");
   } finally {
     loading.value = false;
   }

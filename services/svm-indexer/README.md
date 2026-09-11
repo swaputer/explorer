@@ -1,8 +1,8 @@
 # SVM indexer
 
-WS-first Go service for committed SVM executions. It stores raw receipt history
-before building SRC20 and market projections. Public API terminology uses SVM
-and Events; the decoder listens for the on-chain `Events` event.
+HTTP-first Go service for committed SVM executions. It stores raw receipt history
+and exposes programs, accounts, transactions, and Events without assigning an
+application standard to deployed programs.
 
 ## Run locally
 
@@ -31,8 +31,7 @@ Endpoints currently available:
 - `GET /v1/transactions/{transactionHash}`
 - `GET /v1/addresses/{account}`
 - `GET /v1/addresses/{account}/transactions`
-- `GET /v1/addresses/{account}/balances`
-- `GET /v1/contracts?standard=all|src20|unclassified`
+- `GET /v1/contracts`
 - `GET /v1/contracts/{programId}`
 - `GET /v1/contracts/{programId}/transactions`
 - `GET /v1/src20`
@@ -41,21 +40,17 @@ Endpoints currently available:
 - `GET /v1/src20/{programId}/transfers`
 - `GET /v1/minter/src20`
 - `GET /v1/minter/src20/{programId}`
-- `GET /v1/market`
-- `GET /v1/market/{programId}`
-- `GET /v1/market/{programId}/orders`
-- `GET /v1/market/{programId}/trades`
 - `GET /v1/ws`
 
-The minter list uses the same opaque cursor pagination contract as other
-growing collections. These endpoints are deliberately narrower than the general SRC20
-explorer. They return only the OpenMint SRC20 package hash pinned by the active
-release, after its complete public-mint metadata ABI has been read successfully.
-They are the allowlist boundary for consumer minting interfaces.
+The `/v1/src20` and `/v1/minter/src20` endpoints provide application data for
+compatible explorer detail pages, wallets, and minting clients. SRC20 data is
+not used to classify the contract directory or interpret generic transaction
+events. The minter endpoints return only the OpenMint package hash pinned by
+the active release after its public-mint metadata ABI has been read successfully.
 
 ## Cursor pagination
 
-Growing transaction, contract, holder, transfer, order, and trade collections
+Growing transaction, contract, holder, and transfer collections
 use keyset pagination. Set `limit` to the requested page size (default 50,
 maximum 200) and omit `cursor` for the first page. A paginated response has the
 following shape:
@@ -68,32 +63,30 @@ following shape:
 ```
 
 Pass a non-empty `nextCursor` unchanged as the next request's `cursor`. An empty
-value means there is no later page. Cursors are scoped to the endpoint and all
-active filters, so clients must keep `standard`, `status`, `side`, and `maker`
-unchanged while continuing a result set. Reusing a cursor with another address,
-contract, token, market, or filter returns `400 INVALID_CURSOR`.
+value means there is no later page. Cursors are scoped to the endpoint. Reusing
+a cursor with another address, contract, token, or collection
+returns `400 INVALID_CURSOR`.
 
 Clients must treat cursors as opaque and short-lived navigation state. They are
 not record identifiers and should not be decoded, modified, or persisted as
 durable bookmarks. Keyset ordering prevents concurrent inserts at the head of a
 collection from shifting the already visited page boundary.
 
-The indexer subscribes before taking its initial chain-head snapshot, backfills
-through HTTP, then drains live WS notifications. HTTP reconciliation also runs
-periodically so a reconnect cannot create a permanent gap.
+The indexer subscribes when WS is configured; otherwise it runs in HTTP polling mode.
+It always backfills and reconciles through HTTP. HTTP reconciliation runs periodically
+so a reconnect cannot create a permanent gap.
 
-For production, keep the primary endpoint in `SVM_RPC_WS_URL` and
-`SVM_RPC_HTTP_URL`, then provide comma-separated alternatives through
-`SVM_RPC_WS_FALLBACK_URLS` and `SVM_RPC_HTTP_FALLBACK_URLS`. WS connection,
-chain validation, and subscription failures rotate to the next endpoint. Every
-HTTP chain read is retried against the next endpoint and validates chain ID
+For production, set at least `SVM_RPC_HTTP_URL` and optional comma-separated
+alternatives in `SVM_RPC_HTTP_FALLBACK_URLS`. Optionally set `SVM_RPC_WS_URL`
+and `SVM_RPC_WS_FALLBACK_URLS` for live notifications.
+Every HTTP chain read is retried against the next endpoint and validates chain ID
 before use. Endpoint URLs are redacted from runtime errors.
 
 `/healthz` is a process liveness probe. `/readyz` returns success only after an
 initial authoritative HTTP sync, a responsive database, a recent checkpoint,
 and chain lag within `SVM_READINESS_MAX_LAG`. WS availability is reported but
-does not gate readiness: if every WS provider is unavailable, the retry loop
-continues HTTP catch-up. `/metrics` exposes Prometheus text metrics for chain
+does not gate readiness: if WS providers are unavailable, the loop continues HTTP
+catch-up. `/metrics` exposes Prometheus text metrics for chain
 lag, canonical/finalized tips, RPC endpoint selection and failures, WS
 reconnects, last sync time, and quarantined ingestion errors.
 
@@ -106,16 +99,3 @@ go run ./cmd/admin rewind 46138326
 
 `rewind` preserves raw orphaned history and rebuilds canonical projections from
 the requested block when the server starts again.
-
-## SRC20 market projection
-
-The same WS-first scanner follows the configured `SwaputerSRC20MarketFactory`
-and every market it creates. `OrderCreated`, `OrderFilled`, and
-`OrderCancelled` are stored as reorg-aware projections. A configured legacy
-market can be included with `SVM_MARKET_ADDRESSES`.
-
-- `GET /v1/market` returns only SRC20 markets with at least one unexpired open order.
-- `GET /v1/market/{program}` returns the market binding and order summary.
-- `GET /v1/market/{program}/orders` accepts `status`, `side`, `maker`, and `limit`.
-- `GET /v1/market/{program}/trades` returns indexed fills newest first.
-- WS clients receive `svm.market` after committed market events.

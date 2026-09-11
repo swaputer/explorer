@@ -2,62 +2,61 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { Check, Copy } from "@lucide/vue";
-import AppFooter from "@/components/AppFooter.vue";
-import { toast } from "@/composables/useToast";
 import ExplorerSearch from "@/components/ExplorerSearch.vue";
 import SvmTransactionTable from "@/components/SvmTransactionTable.vue";
 import TablePagination from "@/components/TablePagination.vue";
-import { explorerApi, formatCount, formatUnitsExact, shortHex, type AddressDetail, type TransactionSummary } from "@/lib/explorer";
+import { toast } from "@/composables/useToast";
+import { explorerApi, formatCount, shortHex, type AddressDetail, type TransactionSummary } from "@/lib/explorer";
 
-type AddressTab = "transactions" | "tokens";
 const route = useRoute();
-const tab = ref<AddressTab>("transactions");
 const detail = ref<AddressDetail | null>(null);
 const loading = ref(true);
 const copied = ref(false);
-const transactionPage = ref(1);
+const page = ref(1);
 const pageSize = 25;
 const transactions = ref<TransactionSummary[]>([]);
-const transactionCursors = ref<string[]>([""]);
-const nextTransactionCursor = ref<string | undefined>();
+const cursors = ref<string[]>([""]);
+const nextCursor = ref<string | undefined>();
 const address = computed(() => String(route.params.address || ""));
-const transactionRange = computed(() => {
+const rangeLabel = computed(() => {
   if (!transactions.value.length) return "0 transactions";
-  const start = (transactionPage.value - 1) * pageSize + 1;
+  const start = (page.value - 1) * pageSize + 1;
   return `${start}–${start + transactions.value.length - 1} indexed transactions`;
 });
 
 async function load() {
   loading.value = true;
-  transactionPage.value = 1;
-  transactionCursors.value = [""];
-  nextTransactionCursor.value = undefined;
+  page.value = 1;
+  cursors.value = [""];
+  nextCursor.value = undefined;
   try {
     detail.value = await explorerApi.address(address.value);
     await loadTransactions();
-  }
-  catch { detail.value = null; toast.error("Address not found in the SVM index."); }
-  finally { loading.value = false; }
+  } catch {
+    detail.value = null;
+    transactions.value = [];
+    toast.error("Address not found in the SVM index.");
+  } finally { loading.value = false; }
 }
 
 async function loadTransactions() {
-  const result = await explorerApi.addressTransactions(address.value, pageSize, transactionCursors.value[transactionPage.value - 1]);
+  const result = await explorerApi.addressTransactions(address.value, pageSize, cursors.value[page.value - 1]);
   transactions.value = result.items;
-  nextTransactionCursor.value = result.nextCursor;
+  nextCursor.value = result.nextCursor;
 }
 
-function previousTransactions() {
-  if (transactionPage.value === 1 || loading.value) return;
-  transactionPage.value -= 1;
+function previous() {
+  if (page.value === 1 || loading.value) return;
+  page.value -= 1;
   void loadTransactions();
 }
 
-function nextTransactions() {
-  if (!nextTransactionCursor.value || loading.value) return;
-  transactionCursors.value = transactionCursors.value.slice(0, transactionPage.value);
-  transactionCursors.value.push(nextTransactionCursor.value);
-  transactionPage.value += 1;
-  nextTransactionCursor.value = undefined;
+function next() {
+  if (!nextCursor.value || loading.value) return;
+  cursors.value = cursors.value.slice(0, page.value);
+  cursors.value.push(nextCursor.value);
+  page.value += 1;
+  nextCursor.value = undefined;
   void loadTransactions();
 }
 
@@ -87,30 +86,15 @@ watch(address, load);
     <p v-if="loading" class="protocol-loading protocol-loading--page">Loading address…</p>
 
     <template v-if="detail">
-      <section class="protocol-ledger protocol-ledger--two address-ledger">
+      <section class="protocol-ledger address-ledger">
         <div><span>SVM transactions</span><strong>{{ formatCount(detail.transactionCount ?? detail.transactions.length) }}</strong><small>Indexed</small></div>
-        <div><span>SRC20 balances</span><strong>{{ formatCount(detail.balances.length) }}</strong><small>Tokens</small></div>
       </section>
 
-      <nav class="entity-tabs" aria-label="Address data">
-        <button type="button" :class="{ active: tab === 'transactions' }" @click="tab = 'transactions'">Transactions</button>
-        <button type="button" :class="{ active: tab === 'tokens' }" @click="tab = 'tokens'">Token holdings</button>
-      </nav>
-
-      <section v-if="tab === 'transactions'" class="protocol-section entity-table-section">
+      <section class="protocol-section entity-table-section">
+        <h2>ADDRESS TRANSACTIONS</h2>
         <SvmTransactionTable :items="transactions" />
-        <TablePagination v-if="transactions.length" :page="transactionPage" :has-next="Boolean(nextTransactionCursor)" :label="transactionRange" @previous="previousTransactions" @next="nextTransactions" />
-      </section>
-      <section v-else class="protocol-section entity-table-section">
-        <div class="protocol-table-wrap"><table class="protocol-table holdings-table">
-          <thead><tr><th>Token</th><th>Symbol</th><th>Balance</th><th class="hide-small">Contract</th><th class="hide-small">Total supply</th></tr></thead>
-          <tbody>
-            <tr v-for="balance in detail.balances" :key="balance.programId"><td><RouterLink class="protocol-link" :to="`/contract/${balance.programId}`">{{ balance.name || 'Unnamed SRC20' }}</RouterLink></td><td class="protocol-mono">{{ balance.symbol || '—' }}</td><td class="protocol-mono">{{ formatUnitsExact(balance.balance, balance.decimals) }}</td><td class="protocol-mono hide-small"><RouterLink class="protocol-link" :to="`/contract/${balance.programId}`">{{ shortHex(balance.programId, 10, 8) }}</RouterLink></td><td class="protocol-mono hide-small">{{ formatUnitsExact(balance.totalSupply, balance.decimals) }}</td></tr>
-            <tr v-if="!detail.balances.length"><td colspan="5" class="protocol-empty-row">This address holds no indexed SRC20 tokens.</td></tr>
-          </tbody>
-        </table></div>
+        <TablePagination v-if="transactions.length" :page="page" :has-next="Boolean(nextCursor)" :label="rangeLabel" @previous="previous" @next="next" />
       </section>
     </template>
-    <AppFooter />
   </main>
 </template>

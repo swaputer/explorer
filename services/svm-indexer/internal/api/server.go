@@ -52,7 +52,6 @@ func New(database *store.Store, hub *realtime.Hub, cfg config.Config, scanner *i
 	mux.HandleFunc("GET /v1/events", server.events)
 	mux.HandleFunc("GET /v1/addresses/{address}", server.address)
 	mux.HandleFunc("GET /v1/addresses/{address}/transactions", server.addressTransactions)
-	mux.HandleFunc("GET /v1/addresses/{address}/balances", server.addressBalances)
 	mux.HandleFunc("GET /v1/contracts", server.contracts)
 	mux.HandleFunc("GET /v1/contracts/{program}/transactions", server.contractTransactions)
 	mux.HandleFunc("GET /v1/contracts/{program}", server.contract)
@@ -62,10 +61,6 @@ func New(database *store.Store, hub *realtime.Hub, cfg config.Config, scanner *i
 	mux.HandleFunc("GET /v1/src20/{program}/transfers", server.tokenTransfers)
 	mux.HandleFunc("GET /v1/minter/src20", server.openMintTokens)
 	mux.HandleFunc("GET /v1/minter/src20/{program}", server.openMintToken)
-	mux.HandleFunc("GET /v1/market", server.markets)
-	mux.HandleFunc("GET /v1/market/{program}", server.market)
-	mux.HandleFunc("GET /v1/market/{program}/orders", server.marketOrders)
-	mux.HandleFunc("GET /v1/market/{program}/trades", server.marketTrades)
 	mux.Handle("GET /v1/ws", hub)
 	return server.middleware(mux)
 }
@@ -190,102 +185,6 @@ func (s *Server) metrics(writer http.ResponseWriter, request *http.Request) {
 	fmt.Fprintf(writer, "swaputer_indexer_ingestion_errors_total %d\n", database.Errors)
 }
 
-func (s *Server) markets(writer http.ResponseWriter, request *http.Request) {
-	items, err := s.store.ActiveMarkets(request.Context(), requestLimit(request))
-	if err != nil {
-		writeError(writer, http.StatusServiceUnavailable, "MARKETS_UNAVAILABLE")
-		return
-	}
-	writeJSON(writer, http.StatusOK, map[string]any{"items": items})
-}
-
-func (s *Server) market(writer http.ResponseWriter, request *http.Request) {
-	program, ok := parseHash(strings.TrimSpace(request.PathValue("program")))
-	if !ok {
-		writeError(writer, http.StatusBadRequest, "INVALID_SRC20_ID")
-		return
-	}
-	item, err := s.store.Market(request.Context(), program)
-	if store.IsMarketNotFound(err) {
-		writeError(writer, http.StatusNotFound, "MARKET_NOT_FOUND")
-		return
-	}
-	if err != nil {
-		writeError(writer, http.StatusServiceUnavailable, "MARKET_UNAVAILABLE")
-		return
-	}
-	writeJSON(writer, http.StatusOK, item)
-}
-
-func (s *Server) marketOrders(writer http.ResponseWriter, request *http.Request) {
-	program, ok := parseHash(strings.TrimSpace(request.PathValue("program")))
-	if !ok {
-		writeError(writer, http.StatusBadRequest, "INVALID_SRC20_ID")
-		return
-	}
-	status := strings.ToLower(strings.TrimSpace(request.URL.Query().Get("status")))
-	if status != "" && status != "open" && status != "filled" && status != "cancelled" && status != "expired" {
-		writeError(writer, http.StatusBadRequest, "INVALID_ORDER_STATUS")
-		return
-	}
-	side := strings.ToLower(strings.TrimSpace(request.URL.Query().Get("side")))
-	if side != "" && side != "buy" && side != "sell" {
-		writeError(writer, http.StatusBadRequest, "INVALID_ORDER_SIDE")
-		return
-	}
-	maker := strings.TrimSpace(request.URL.Query().Get("maker"))
-	if maker != "" && !common.IsHexAddress(maker) {
-		writeError(writer, http.StatusBadRequest, "INVALID_MAKER")
-		return
-	}
-	cursorScope := strings.Join([]string{"market-orders", strings.ToLower(program.Hex()), status, side, strings.ToLower(maker)}, ":")
-	cursor, ok := marketCursor(request.URL.Query().Get("cursor"), cursorScope)
-	if !ok {
-		writeError(writer, http.StatusBadRequest, "INVALID_CURSOR")
-		return
-	}
-	limit := requestLimit(request)
-	items, err := s.store.MarketOrders(request.Context(), program, status, side, maker, limit+1, cursor)
-	if err != nil {
-		writeError(writer, http.StatusServiceUnavailable, "MARKET_ORDERS_UNAVAILABLE")
-		return
-	}
-	nextCursor := ""
-	if len(items) > limit {
-		items = items[:limit]
-		last := items[len(items)-1]
-		nextCursor = encodeCursor(marketPageCursor{Scope: cursorScope, BlockNumber: last.BlockNumber, LogIndex: last.LogIndex})
-	}
-	writeJSON(writer, http.StatusOK, map[string]any{"items": items, "nextCursor": nextCursor})
-}
-
-func (s *Server) marketTrades(writer http.ResponseWriter, request *http.Request) {
-	program, ok := parseHash(strings.TrimSpace(request.PathValue("program")))
-	if !ok {
-		writeError(writer, http.StatusBadRequest, "INVALID_SRC20_ID")
-		return
-	}
-	cursorScope := "market-trades:" + strings.ToLower(program.Hex())
-	cursor, ok := marketCursor(request.URL.Query().Get("cursor"), cursorScope)
-	if !ok {
-		writeError(writer, http.StatusBadRequest, "INVALID_CURSOR")
-		return
-	}
-	limit := requestLimit(request)
-	items, err := s.store.MarketTrades(request.Context(), program, limit+1, cursor)
-	if err != nil {
-		writeError(writer, http.StatusServiceUnavailable, "MARKET_TRADES_UNAVAILABLE")
-		return
-	}
-	nextCursor := ""
-	if len(items) > limit {
-		items = items[:limit]
-		last := items[len(items)-1]
-		nextCursor = encodeCursor(marketPageCursor{Scope: cursorScope, BlockNumber: last.BlockNumber, LogIndex: last.LogIndex})
-	}
-	writeJSON(writer, http.StatusOK, map[string]any{"items": items, "nextCursor": nextCursor})
-}
-
 func (s *Server) transactions(writer http.ResponseWriter, request *http.Request) {
 	const cursorScope = "transactions"
 	cursor, ok := transactionCursor(request.URL.Query().Get("cursor"), cursorScope)
@@ -340,23 +239,15 @@ func (s *Server) search(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (s *Server) contracts(writer http.ResponseWriter, request *http.Request) {
-	standard := strings.ToLower(strings.TrimSpace(request.URL.Query().Get("standard")))
-	if standard == "" {
-		standard = store.ContractStandardAll
-	}
-	cursorScope := "contracts:" + standard
+	const cursorScope = "contracts"
 	cursor, ok := contractCursor(request.URL.Query().Get("cursor"), cursorScope)
 	if !ok {
 		writeError(writer, http.StatusBadRequest, "INVALID_CURSOR")
 		return
 	}
 	limit := requestLimit(request)
-	items, err := s.store.ListContracts(request.Context(), standard, limit+1, cursor)
+	items, err := s.store.ListContracts(request.Context(), limit+1, cursor)
 	if err != nil {
-		if strings.Contains(err.Error(), "unsupported contract standard") {
-			writeError(writer, http.StatusBadRequest, "INVALID_CONTRACT_STANDARD")
-			return
-		}
 		writeError(writer, http.StatusServiceUnavailable, "CONTRACTS_UNAVAILABLE")
 		return
 	}
@@ -460,11 +351,6 @@ func (s *Server) address(writer http.ResponseWriter, request *http.Request) {
 		writeError(writer, http.StatusBadRequest, "INVALID_SVM_ADDRESS")
 		return
 	}
-	balances, err := s.store.AddressBalances(request.Context(), account)
-	if err != nil {
-		writeError(writer, http.StatusServiceUnavailable, "ADDRESS_BALANCES_UNAVAILABLE")
-		return
-	}
 	transactions, err := s.store.AddressTransactions(request.Context(), account, 25, nil)
 	if err != nil {
 		writeError(writer, http.StatusServiceUnavailable, "ADDRESS_TRANSACTIONS_UNAVAILABLE")
@@ -477,7 +363,7 @@ func (s *Server) address(writer http.ResponseWriter, request *http.Request) {
 	}
 	writeJSON(writer, http.StatusOK, map[string]any{
 		"query": raw, "accountId": strings.ToLower(account.Hex()), "evmAddress": evmAddress,
-		"transactionCount": transactionCount, "balances": balances, "transactions": transactions,
+		"transactionCount": transactionCount, "transactions": transactions,
 	})
 }
 
@@ -506,20 +392,6 @@ func (s *Server) addressTransactions(writer http.ResponseWriter, request *http.R
 		nextCursor = encodeCursor(transactionPageCursor{Scope: cursorScope, BlockNumber: last.BlockNumber, LogIndex: last.LogIndex, ExecutionID: last.ExecutionID})
 	}
 	writeJSON(writer, http.StatusOK, map[string]any{"items": items, "nextCursor": nextCursor})
-}
-
-func (s *Server) addressBalances(writer http.ResponseWriter, request *http.Request) {
-	account, _, ok := parseAccount(strings.TrimSpace(request.PathValue("address")))
-	if !ok {
-		writeError(writer, http.StatusBadRequest, "INVALID_SVM_ADDRESS")
-		return
-	}
-	items, err := s.store.AddressBalances(request.Context(), account)
-	if err != nil {
-		writeError(writer, http.StatusServiceUnavailable, "ADDRESS_BALANCES_UNAVAILABLE")
-		return
-	}
-	writeJSON(writer, http.StatusOK, map[string]any{"items": items})
 }
 
 func (s *Server) tokens(writer http.ResponseWriter, request *http.Request) {
@@ -687,12 +559,6 @@ type transferPageCursor struct {
 	EventIndex  uint   `json:"e"`
 }
 
-type marketPageCursor struct {
-	Scope       string `json:"s"`
-	BlockNumber uint64 `json:"b"`
-	LogIndex    uint   `json:"l"`
-}
-
 type openMintTokenPageCursor struct {
 	Scope           string `json:"s"`
 	DeploymentBlock uint64 `json:"b"`
@@ -747,17 +613,6 @@ func transferCursor(raw, scope string) (*store.TransferCursor, bool) {
 		return nil, false
 	}
 	return &store.TransferCursor{BlockNumber: decoded.BlockNumber, ExecutionID: decoded.ExecutionID, EventIndex: decoded.EventIndex}, true
-}
-
-func marketCursor(raw, scope string) (*store.MarketCursor, bool) {
-	if raw == "" {
-		return nil, true
-	}
-	var decoded marketPageCursor
-	if !decodeCursor(raw, &decoded) || decoded.Scope != scope {
-		return nil, false
-	}
-	return &store.MarketCursor{BlockNumber: decoded.BlockNumber, LogIndex: decoded.LogIndex}, true
 }
 
 func openMintTokenCursor(raw, scope string) (*store.OpenMintTokenCursor, bool) {

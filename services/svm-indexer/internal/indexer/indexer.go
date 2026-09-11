@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 
 	"github.com/swaputer/explorer/services/svm-indexer/internal/chain"
@@ -65,45 +64,17 @@ func New(ctx context.Context, cfg config.Config, database *store.Store, hub *rea
 	}
 	indexer := &Indexer{config: cfg, store: database, http: httpClient, logger: logger, hub: hub, reader: reader}
 	indexer.wsEndpoint.Store(-1)
-	if err := indexer.seedConfiguredMarkets(ctx); err != nil {
-		httpClient.Close()
-		return nil, err
-	}
 	return indexer, nil
-}
-
-func (i *Indexer) seedConfiguredMarkets(ctx context.Context) error {
-	for _, market := range i.config.MarketAddresses {
-		readHash := func(signature string) (common.Hash, error) {
-			selector := crypto.Keccak256([]byte(signature))[:4]
-			output, err := i.http.CallContract(ctx, ethereum.CallMsg{To: &market, Data: selector}, nil)
-			if err != nil || len(output) != common.HashLength {
-				return common.Hash{}, fmt.Errorf("read configured market %s binding %s", market.Hex(), signature)
-			}
-			return common.BytesToHash(output), nil
-		}
-		token, err := readHash("token()")
-		if err != nil {
-			return err
-		}
-		escrow, err := readHash("escrow()")
-		if err != nil {
-			return err
-		}
-		codeHash, err := readHash("tokenCodeHash()")
-		if err != nil {
-			return err
-		}
-		if err := i.store.EnsureConfiguredMarket(ctx, store.MarketBinding{Market: market, Token: token, Escrow: escrow, TokenCodeHash: codeHash}); err != nil {
-			return fmt.Errorf("register configured market %s: %w", market.Hex(), err)
-		}
-	}
-	return nil
 }
 
 func (i *Indexer) Close() { i.http.Close() }
 
 func (i *Indexer) Run(ctx context.Context) error {
+	if len(i.config.RPCWSURLs) == 0 {
+		i.logger.Printf("SVM indexer is running in HTTP polling mode")
+		return i.runHTTPPollLoop(ctx)
+	}
+
 	backoff := time.Second
 	for ctx.Err() == nil {
 		err := i.runSession(ctx)
@@ -131,6 +102,24 @@ func (i *Indexer) Run(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (i *Indexer) runHTTPPollLoop(ctx context.Context) error {
+	if err := i.verifyCheckpoint(ctx); err != nil {
+		return err
+	}
+	ticker := time.NewTicker(i.config.ReconcileInterval)
+	defer ticker.Stop()
+	for {
+		if err := i.catchUp(ctx); err != nil {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+		}
+	}
 }
 
 func (i *Indexer) runSession(ctx context.Context) error {
@@ -319,13 +308,8 @@ func (i *Indexer) syncRange(ctx context.Context, from, to, observedHead uint64) 
 		return err
 	}
 	executions := make([]chain.Execution, 0, len(logs))
-	marketEvents := make([]chain.MarketEvent, 0, len(logs))
 	errorsFound := make([]store.IngestionError, 0)
 	transactions := make(map[common.Hash]store.Transaction)
-	knownMarkets, err := i.store.KnownMarkets(ctx)
-	if err != nil {
-		return fmt.Errorf("load known markets: %w", err)
-	}
 	for _, item := range logs {
 		if item.Removed {
 			continue
@@ -334,17 +318,6 @@ func (i *Indexer) syncRange(ctx context.Context, from, to, observedHead uint64) 
 			return err
 		}
 		if item.Address != i.config.KernelAddress {
-			event, recognized, eventErr := chain.ParseMarketEvent(item, i.config.MarketFactoryAddress, knownMarkets)
-			if eventErr != nil {
-				errorsFound = append(errorsFound, store.IngestionError{BlockNumber: item.BlockNumber, BlockHash: item.BlockHash, TxHash: item.TxHash, LogIndex: item.Index, Code: "INVALID_MARKET_LOG", Details: map[string]any{"message": eventErr.Error()}, RawLog: item})
-				continue
-			}
-			if recognized {
-				marketEvents = append(marketEvents, event)
-				if event.Kind == chain.MarketRegistered {
-					knownMarkets[event.Market] = struct{}{}
-				}
-			}
 			continue
 		}
 		execution, executionErr := chain.ParseExecution(item, i.config.KernelAddress)
@@ -378,7 +351,7 @@ func (i *Indexer) syncRange(ctx context.Context, from, to, observedHead uint64) 
 	}
 	if err := i.store.CommitBatch(ctx, store.Batch{
 		ScannedTo: scannedTo, Headers: headers, Transactions: transactions, Executions: executions,
-		MarketEvents: marketEvents, Errors: errorsFound, FinalizedTo: finalized,
+		Errors: errorsFound, FinalizedTo: finalized,
 	}); err != nil {
 		return fmt.Errorf("commit blocks %d-%d: %w", from, to, err)
 	}
@@ -395,10 +368,7 @@ func (i *Indexer) syncRange(ctx context.Context, from, to, observedHead uint64) 
 			Data:      map[string]any{"executionCount": len(executions), "transactionHashes": transactionHashes},
 		})
 	}
-	if len(marketEvents) > 0 {
-		i.hub.Publish(realtime.Event{Cursor: fmt.Sprintf("market:block:%d", to), Type: "svm.market", BlockNumber: to, Timestamp: time.Now().UTC().Format(time.RFC3339), Data: map[string]any{"eventCount": len(marketEvents)}})
-	}
-	i.logger.Printf("indexed blocks %d-%d: %d executions, %d market events, %d quarantined Events payloads", from, to, len(executions), len(marketEvents), len(errorsFound))
+	i.logger.Printf("indexed blocks %d-%d: %d executions, %d quarantined Events payloads", from, to, len(executions), len(errorsFound))
 	return nil
 }
 
@@ -434,8 +404,9 @@ func (i *Indexer) filterQuery(from, to *big.Int) ethereum.FilterQuery {
 	return ethereum.FilterQuery{
 		FromBlock: from,
 		ToBlock:   to,
+		Addresses: []common.Address{i.config.KernelAddress},
 		Topics: [][]common.Hash{
-			{chain.EventsTopic, chain.MarketCreatedTopic, chain.OrderCreatedTopic, chain.OrderFilledTopic, chain.OrderCancelledTopic},
+			{chain.EventsTopic},
 		},
 	}
 }

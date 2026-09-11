@@ -66,10 +66,6 @@ code { font-family: var(--font-mono); }
 .page-heading h1 { margin: 0; font-size: clamp(32px, 2.5vw, 38px); line-height: 1; font-weight: 690; letter-spacing: -.055em; }
 .page-heading p { margin: 8px 0 0; color: #3d4046; font-size: 13px; letter-spacing: -.012em; }
 
-.site-footer { min-height: 64px; margin-top: auto; border-top: 1px solid var(--rule-strong); display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
-.site-footer nav { display: flex; gap: 38px; }
-.site-footer a:hover { color: var(--blue); }
-
 /* Protocol explorer */
 .sr-only { width: 1px; height: 1px; padding: 0; margin: -1px; position: absolute; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .explorer-page { padding-top: 0; }
@@ -137,7 +133,6 @@ code { font-family: var(--font-mono); }
 .overview-transactions .protocol-table th { height: 38px; padding: 0 12px; font-size: 11px; text-transform: none; letter-spacing: 0; }
 .overview-transactions .protocol-table td { height: 43px; padding: 0 12px; font-size: 12px; }
 .overview-transactions .protocol-more { min-height: 44px; padding: 0 12px; border-bottom: 0; font-size: 12px; }
-.overview-transactions + .site-footer { margin-top: 38px; }
 
 .explorer-directory-page > .explorer-search, .explorer-detail-page > .explorer-search { flex: 0 0 auto; }
 .detail-heading { padding: 28px 0 17px; }
@@ -230,8 +225,6 @@ code { font-family: var(--font-mono); }
   .page { width: calc(100% - 24px); }
   .page-heading { padding: 22px 0 16px; }
   .page-heading h1 { font-size: 34px; }
-  .site-footer { min-height: 56px; }
-  .site-footer nav { gap: 18px; }
   .explorer-heading { padding: 24px 0 13px; }
   .explorer-heading h1, .detail-heading h1, .entity-heading h1 { font-size: 31px; }
   .explorer-page--overview .explorer-heading { padding: 38px 0 20px; }
@@ -266,8 +259,6 @@ code { font-family: var(--font-mono); }
   .execution-details { padding: 12px; }
   .execution-details dl { grid-template-columns: 1fr; }
   .entity-tabs { overflow-x: auto; }
-  .site-footer { gap: 12px; }
-  .site-footer nav { gap: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

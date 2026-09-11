@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import AppFooter from "@/components/AppFooter.vue";
 import { toast } from "@/composables/useToast";
 import ExplorerSearch from "@/components/ExplorerSearch.vue";
 import SvmTransactionTable from "@/components/SvmTransactionTable.vue";
@@ -58,6 +57,5 @@ onMounted(() => void load());
       <p v-if="loading" class="protocol-loading">Loading transactions…</p>
       <TablePagination v-else :page="page" :has-next="Boolean(nextCursor)" :label="rangeLabel" @previous="previous" @next="next" />
     </section>
-    <AppFooter />
   </main>
 </template>

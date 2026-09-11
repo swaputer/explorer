@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { Copy } from "@lucide/vue";
-import AppFooter from "@/components/AppFooter.vue";
 import ExplorerSearch from "@/components/ExplorerSearch.vue";
 import SvmTransactionTable from "@/components/SvmTransactionTable.vue";
 import TablePagination from "@/components/TablePagination.vue";
@@ -32,16 +31,11 @@ const transactionPage = ref(1);
 const transactionCursors = ref<string[]>([""]);
 const nextTransactionCursor = ref<string | undefined>();
 const program = computed(() => String(route.params.program || ""));
-const isSRC20 = computed(() => contract.value?.standard === "src20" && Boolean(contract.value.token));
-const title = computed(() => {
-  if (!contract.value) return "Contract Details";
-  return isSRC20.value ? (contract.value.name || "Unnamed SRC20") : "Contract";
-});
-const subtitle = computed(() => {
-  if (!contract.value) return "Mini contract details and indexed activity.";
-  return isSRC20.value ? `${contract.value.symbol || "—"} · SRC20` : shortHex(contract.value.programId, 16, 12);
-});
-const ordinaryTransfers = computed(() => transfers.value.filter((item) => !item.mint && !item.burn));
+const isSRC20 = computed(() => Boolean(contract.value?.token));
+const title = computed(() => isSRC20.value ? (contract.value?.token?.name || "Unnamed SRC20") : "Contract");
+const subtitle = computed(() => isSRC20.value
+  ? `${contract.value?.token?.symbol || "—"} · SRC20`
+  : contract.value ? shortHex(contract.value.programId, 16, 12) : "Mini contract details and indexed activity.");
 const holderRange = computed(() => pageRange(holderPage.value, holders.value.length, "holders"));
 const transferRange = computed(() => pageRange(transferPage.value, transfers.value.length, "transfers"));
 const transactionRange = computed(() => pageRange(transactionPage.value, transactions.value.length, "transactions"));
@@ -68,7 +62,7 @@ async function load() {
     const next = await explorerApi.contract(program.value);
     contract.value = next;
     resetPagination();
-    tab.value = next.standard === "src20" ? "holders" : "transactions";
+    tab.value = next.token ? "holders" : "transactions";
     await loadActiveTab();
   } catch {
     contract.value = null;
@@ -184,7 +178,8 @@ watch(program, load);
           <div><dt>Program ID</dt><dd><code>{{ shortHex(contract.programId, 18, 14) }}</code><button type="button" aria-label="Copy contract program ID" @click="copy(contract.programId)"><Copy :size="13" /></button></dd></div>
           <div><dt>Code hash</dt><dd><code>{{ shortHex(contract.codeHash, 18, 14) }}</code><button type="button" aria-label="Copy contract code hash" @click="copy(contract.codeHash)"><Copy :size="13" /></button></dd></div>
           <div><dt>Creator</dt><dd><RouterLink class="protocol-link protocol-mono" :to="`/address/${contract.creator}`">{{ shortHex(contract.creator, 18, 14) }}</RouterLink><button type="button" aria-label="Copy contract creator" @click="copy(contract.creator)"><Copy :size="13" /></button></dd></div>
-          <div><dt>Standard</dt><dd><span :class="['contract-standard', `contract-standard--${contract.standard}`]">{{ contract.standard === 'src20' ? 'SRC20' : '—' }}</span></dd></div>
+          <div><dt>Creation transaction</dt><dd><RouterLink class="protocol-link protocol-mono" :to="`/tx/${contract.creationTransactionHash}`">{{ shortHex(contract.creationTransactionHash, 18, 14) }}</RouterLink><button type="button" aria-label="Copy creation transaction hash" @click="copy(contract.creationTransactionHash)"><Copy :size="13" /></button></dd></div>
+          <div><dt>Deployment</dt><dd><span class="protocol-mono">Block {{ formatCount(contract.deploymentBlock) }}</span><span :class="['tx-status', { 'tx-status--pending': !contract.finalized }]">{{ contract.finalized ? 'Finalized' : 'Confirming' }}</span></dd></div>
         </dl>
       </section>
 
@@ -204,9 +199,9 @@ watch(program, load);
         </section>
 
         <section v-else-if="tab === 'transfers'" class="protocol-section entity-table-section">
-          <div class="protocol-table-wrap"><table class="protocol-table transfer-table"><thead><tr><th>Transaction</th><th>From</th><th>To</th><th>Amount</th><th>Block</th><th>Age</th></tr></thead><tbody>
-            <tr v-for="item in ordinaryTransfers" :key="`${item.transactionHash}-${item.sender}-${item.recipient}`"><td><RouterLink class="protocol-link protocol-mono" :to="`/tx/${item.transactionHash}`">{{ shortHex(item.transactionHash) }}</RouterLink></td><td><RouterLink class="protocol-link protocol-mono" :to="`/address/${item.sender}`">{{ shortHex(item.sender) }}</RouterLink></td><td><RouterLink class="protocol-link protocol-mono" :to="`/address/${item.recipient}`">{{ shortHex(item.recipient) }}</RouterLink></td><td class="protocol-mono">{{ formatUnitsExact(item.amount, contract.token.decimals) }} {{ contract.token.symbol }}</td><td class="protocol-mono">{{ formatCount(item.blockNumber) }}</td><td class="protocol-mono">{{ formatAge(item.blockTime) }}</td></tr>
-            <tr v-if="!ordinaryTransfers.length"><td colspan="6" class="protocol-empty-row">No ordinary transfers indexed for this contract.</td></tr>
+          <div class="protocol-table-wrap"><table class="protocol-table transfer-table"><thead><tr><th>Transaction</th><th>Type</th><th>From</th><th>To</th><th>Amount</th><th>Block</th><th>Age</th></tr></thead><tbody>
+            <tr v-for="item in transfers" :key="`${item.transactionHash}-${item.sender}-${item.recipient}`"><td><RouterLink class="protocol-link protocol-mono" :to="`/tx/${item.transactionHash}`">{{ shortHex(item.transactionHash) }}</RouterLink></td><td>{{ item.mint ? 'Mint' : item.burn ? 'Burn' : 'Transfer' }}</td><td><RouterLink class="protocol-link protocol-mono" :title="item.sender" :to="`/address/${item.sender}`">{{ shortHex(item.sender) }}</RouterLink></td><td><RouterLink class="protocol-link protocol-mono" :title="item.recipient" :to="`/address/${item.recipient}`">{{ shortHex(item.recipient) }}</RouterLink></td><td class="protocol-mono">{{ formatUnitsExact(item.amount, contract.token.decimals) }} {{ contract.token.symbol }}</td><td class="protocol-mono">{{ formatCount(item.blockNumber) }}</td><td class="protocol-mono">{{ formatAge(item.blockTime) }}</td></tr>
+            <tr v-if="!transfers.length"><td colspan="7" class="protocol-empty-row">No transfers indexed for this contract.</td></tr>
           </tbody></table></div>
           <TablePagination v-if="transfers.length" :page="transferPage" :has-next="Boolean(nextTransferCursor)" :label="transferRange" @previous="previousTransfers" @next="nextTransfers" />
         </section>
@@ -218,6 +213,5 @@ watch(program, load);
         <TablePagination v-if="transactions.length" :page="transactionPage" :has-next="Boolean(nextTransactionCursor)" :label="transactionRange" @previous="previousTransactions" @next="nextTransactions" />
       </section>
     </template>
-    <AppFooter />
   </main>
 </template>

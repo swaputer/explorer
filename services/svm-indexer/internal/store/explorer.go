@@ -3,14 +3,9 @@ package store
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"strings"
 	"time"
-
-	"github.com/ethereum/go-ethereum/crypto"
 )
-
-var approvalTopic = crypto.Keccak256Hash([]byte("Approval(bytes32,bytes32,uint256)"))
 
 type TransactionCursor struct {
 	BlockNumber uint64
@@ -50,7 +45,7 @@ func (s *Store) RecentTransactions(ctx context.Context, limit int, cursor *Trans
 }
 
 func (s *Store) LatestEvents(ctx context.Context, limit int) ([]LatestEvent, error) {
-	rows, err := s.pool.Query(ctx, `SELECT e.transaction_hash,e.block_number,b.block_time,l.emitter,l.topic0,l.raw_data
+	rows, err := s.pool.Query(ctx, `SELECT e.transaction_hash,e.block_number,b.block_time,l.emitter
 	FROM svm_events l JOIN svm_executions e ON e.id=l.execution_id
 	JOIN chain_blocks b ON b.chain_id=e.chain_id AND b.block_hash=e.block_hash
 	WHERE e.chain_id=$1 AND e.world_id=$2 AND e.canonical AND l.canonical AND l.record_kind='application'
@@ -64,24 +59,11 @@ func (s *Store) LatestEvents(ctx context.Context, limit int) ([]LatestEvent, err
 	for rows.Next() {
 		var item LatestEvent
 		var blockTime time.Time
-		var topic0 *string
-		var data []byte
-		if err := rows.Scan(&item.TransactionHash, &item.BlockNumber, &blockTime, &item.Emitter, &topic0, &data); err != nil {
+		if err := rows.Scan(&item.TransactionHash, &item.BlockNumber, &blockTime, &item.Emitter); err != nil {
 			return nil, err
 		}
 		item.BlockTime = blockTime.UTC().Format(time.RFC3339)
 		item.Event = "ApplicationEvent"
-		if topic0 != nil {
-			switch strings.ToLower(*topic0) {
-			case strings.ToLower(transferTopic.Hex()):
-				item.Event = "Transfer"
-			case strings.ToLower(approvalTopic.Hex()):
-				item.Event = "Approval"
-			}
-		}
-		if (item.Event == "Transfer" || item.Event == "Approval") && len(data) == 32 {
-			item.Amount = new(big.Int).SetBytes(data).String()
-		}
 		result = append(result, item)
 	}
 	return result, rows.Err()

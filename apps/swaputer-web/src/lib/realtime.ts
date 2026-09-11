@@ -49,7 +49,7 @@ export function subscribeExplorerRealtime(
     socket.addEventListener("message", (event) => {
       try {
         const payload = JSON.parse(String(event.data)) as { type?: string };
-        if (payload.type === "svm.executions" || payload.type === "svm.market") onEvent();
+        if (payload.type === "svm.executions") onEvent();
       } catch { /* ignore malformed realtime messages */ }
     });
     socket.addEventListener("error", () => socket?.close());

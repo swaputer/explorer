@@ -30,11 +30,6 @@ func TestPaginationCursorsRoundTrip(t *testing.T) {
 			valid: func(raw string) bool { _, ok := transferCursor(raw, scope); return ok },
 		},
 		{
-			name:  "market",
-			value: marketPageCursor{Scope: scope, BlockNumber: 123, LogIndex: 4},
-			valid: func(raw string) bool { _, ok := marketCursor(raw, scope); return ok },
-		},
-		{
 			name:  "open mint token",
 			value: openMintTokenPageCursor{Scope: scope, DeploymentBlock: 123, ProgramID: "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
 			valid: func(raw string) bool { _, ok := openMintTokenCursor(raw, scope); return ok },
@@ -58,7 +53,6 @@ func TestPaginationCursorsRejectInvalidValues(t *testing.T) {
 		"contract":    func(raw string) bool { _, ok := contractCursor(raw, scope); return ok },
 		"holder":      func(raw string) bool { _, ok := holderCursor(raw, scope); return ok },
 		"transfer":    func(raw string) bool { _, ok := transferCursor(raw, scope); return ok },
-		"market":      func(raw string) bool { _, ok := marketCursor(raw, scope); return ok },
 		"open mint":   func(raw string) bool { _, ok := openMintTokenCursor(raw, scope); return ok },
 	} {
 		t.Run(name, func(t *testing.T) {

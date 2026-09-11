@@ -46,38 +46,6 @@ func Open(ctx context.Context, cfg config.Config) (*Store, error) {
 
 func (s *Store) Close() { s.pool.Close() }
 
-func (s *Store) EnsureConfiguredMarket(ctx context.Context, binding MarketBinding) error {
-	_, err := s.pool.Exec(ctx, `INSERT INTO src20_markets(
-		chain_id,world_id,token_id,market_address,escrow_id,token_code_hash,source,creation_block,canonical,finalized
-	) VALUES($1,$2,$3,$4,$5,$6,'configured',$7,true,true)
-	ON CONFLICT(chain_id,world_id,token_id) DO UPDATE SET
-		market_address=excluded.market_address,escrow_id=excluded.escrow_id,token_code_hash=excluded.token_code_hash,
-		canonical=true,finalized=true`,
-		s.config.ChainID, strings.ToLower(s.config.WorldID.Hex()), strings.ToLower(binding.Token.Hex()),
-		strings.ToLower(binding.Market.Hex()), strings.ToLower(binding.Escrow.Hex()), strings.ToLower(binding.TokenCodeHash.Hex()),
-		s.config.StartBlock,
-	)
-	return err
-}
-
-func (s *Store) KnownMarkets(ctx context.Context) (map[common.Address]struct{}, error) {
-	rows, err := s.pool.Query(ctx, `SELECT market_address FROM src20_markets WHERE chain_id=$1 AND world_id=$2 AND canonical`,
-		s.config.ChainID, strings.ToLower(s.config.WorldID.Hex()))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	result := make(map[common.Address]struct{})
-	for rows.Next() {
-		var value string
-		if err := rows.Scan(&value); err != nil {
-			return nil, err
-		}
-		result[common.HexToAddress(value)] = struct{}{}
-	}
-	return result, rows.Err()
-}
-
 func (s *Store) Migrate(ctx context.Context) error {
 	if _, err := s.pool.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
 		version INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -187,11 +155,6 @@ func (s *Store) CommitBatch(ctx context.Context, batch Batch) error {
 			return err
 		}
 	}
-	for _, event := range batch.MarketEvents {
-		if err := s.upsertMarketEvent(ctx, tx, event, event.EthereumLog.BlockNumber <= batch.FinalizedTo); err != nil {
-			return err
-		}
-	}
 	for _, ingestionError := range batch.Errors {
 		if err := s.upsertError(ctx, tx, ingestionError); err != nil {
 			return err
@@ -215,74 +178,6 @@ func (s *Store) CommitBatch(ctx context.Context, batch Batch) error {
 		return fmt.Errorf("update checkpoint: %w", err)
 	}
 	return tx.Commit(ctx)
-}
-
-func (s *Store) upsertMarketEvent(ctx context.Context, tx pgx.Tx, event chain.MarketEvent, finalized bool) error {
-	market := strings.ToLower(event.Market.Hex())
-	txHash := strings.ToLower(event.EthereumLog.TxHash.Hex())
-	blockHash := strings.ToLower(event.EthereumLog.BlockHash.Hex())
-	switch event.Kind {
-	case chain.MarketRegistered:
-		_, err := tx.Exec(ctx, `INSERT INTO src20_markets(
-			chain_id,world_id,token_id,market_address,escrow_id,token_code_hash,source,creation_block,
-			creation_transaction_hash,creation_log_index,creation_block_hash,canonical,finalized
-		) VALUES($1,$2,$3,$4,$5,$6,'factory',$7,$8,$9,$10,true,$11)
-		ON CONFLICT(chain_id,world_id,token_id) DO UPDATE SET
-			market_address=excluded.market_address,escrow_id=excluded.escrow_id,token_code_hash=excluded.token_code_hash,
-			creation_block=excluded.creation_block,creation_transaction_hash=excluded.creation_transaction_hash,
-			creation_log_index=excluded.creation_log_index,creation_block_hash=excluded.creation_block_hash,
-			canonical=true,finalized=src20_markets.finalized OR excluded.finalized`,
-			s.config.ChainID, strings.ToLower(s.config.WorldID.Hex()), strings.ToLower(event.Token.Hex()), market,
-			strings.ToLower(event.Escrow.Hex()), strings.ToLower(event.TokenCodeHash.Hex()), event.EthereumLog.BlockNumber,
-			txHash, event.EthereumLog.Index, blockHash, finalized)
-		return err
-	case chain.MarketOrderCreated:
-		var token string
-		if err := tx.QueryRow(ctx, `SELECT token_id FROM src20_markets WHERE chain_id=$1 AND market_address=$2 AND canonical`, s.config.ChainID, market).Scan(&token); err != nil {
-			return fmt.Errorf("resolve order market %s: %w", market, err)
-		}
-		_, err := tx.Exec(ctx, `INSERT INTO market_orders(
-			chain_id,world_id,market_address,token_id,order_id,side,maker,amount,unit_price_wei,price_wei,
-			vm_eth_amount,expiry,block_number,transaction_hash,ethereum_log_index,block_hash,canonical,finalized
-		) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,true,$17)
-		ON CONFLICT(chain_id,market_address,order_id) DO UPDATE SET
-			side=excluded.side,maker=excluded.maker,amount=excluded.amount,unit_price_wei=excluded.unit_price_wei,
-			price_wei=excluded.price_wei,vm_eth_amount=excluded.vm_eth_amount,expiry=excluded.expiry,
-			block_number=excluded.block_number,transaction_hash=excluded.transaction_hash,ethereum_log_index=excluded.ethereum_log_index,
-			block_hash=excluded.block_hash,canonical=true,finalized=market_orders.finalized OR excluded.finalized`,
-			s.config.ChainID, strings.ToLower(s.config.WorldID.Hex()), market, token, event.OrderID.String(), event.Side,
-			strings.ToLower(event.Maker.Hex()), event.Amount.String(), event.UnitPriceWei.String(), event.PriceWei.String(),
-			event.VMETHAmount.String(), event.Expiry, event.EthereumLog.BlockNumber, txHash, event.EthereumLog.Index,
-			blockHash, finalized)
-		return err
-	case chain.MarketOrderFilled:
-		_, err := tx.Exec(ctx, `INSERT INTO market_order_fills(
-			chain_id,market_address,order_id,seller,buyer,amount,price_wei,vm_eth_spent,block_number,
-			transaction_hash,ethereum_log_index,block_hash,canonical,finalized
-		) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true,$13)
-		ON CONFLICT(chain_id,market_address,order_id) DO UPDATE SET
-			seller=excluded.seller,buyer=excluded.buyer,amount=excluded.amount,price_wei=excluded.price_wei,
-			vm_eth_spent=excluded.vm_eth_spent,block_number=excluded.block_number,transaction_hash=excluded.transaction_hash,
-			ethereum_log_index=excluded.ethereum_log_index,block_hash=excluded.block_hash,
-			canonical=true,finalized=market_order_fills.finalized OR excluded.finalized`,
-			s.config.ChainID, market, event.OrderID.String(), strings.ToLower(event.Seller.Hex()), strings.ToLower(event.Buyer.Hex()),
-			event.Amount.String(), event.PriceWei.String(), event.VMETHSpent.String(), event.EthereumLog.BlockNumber,
-			txHash, event.EthereumLog.Index, blockHash, finalized)
-		return err
-	case chain.MarketOrderCancelled:
-		_, err := tx.Exec(ctx, `INSERT INTO market_order_cancellations(
-			chain_id,market_address,order_id,maker,block_number,transaction_hash,ethereum_log_index,block_hash,canonical,finalized
-		) VALUES($1,$2,$3,$4,$5,$6,$7,$8,true,$9)
-		ON CONFLICT(chain_id,market_address,order_id) DO UPDATE SET
-			maker=excluded.maker,block_number=excluded.block_number,transaction_hash=excluded.transaction_hash,
-			ethereum_log_index=excluded.ethereum_log_index,block_hash=excluded.block_hash,
-			canonical=true,finalized=market_order_cancellations.finalized OR excluded.finalized`,
-			s.config.ChainID, market, event.OrderID.String(), strings.ToLower(event.Maker.Hex()), event.EthereumLog.BlockNumber,
-			txHash, event.EthereumLog.Index, blockHash, finalized)
-		return err
-	default:
-		return fmt.Errorf("unsupported market event %s", event.Kind)
-	}
 }
 
 func (s *Store) upsertBlock(ctx context.Context, tx pgx.Tx, header *types.Header, finalized bool) error {
@@ -311,15 +206,6 @@ func (s *Store) upsertBlock(ctx context.Context, tx pgx.Tx, header *types.Header
 
 func (s *Store) orphanCanonicalHeight(ctx context.Context, tx pgx.Tx, number uint64, keepHash string) error {
 	statements := []string{
-		`UPDATE market_order_cancellations SET canonical=false,finalized=false
-		 WHERE chain_id=$1 AND block_number=$2 AND canonical AND (block_hash IS NULL OR block_hash<>$3)`,
-		`UPDATE market_order_fills SET canonical=false,finalized=false
-		 WHERE chain_id=$1 AND block_number=$2 AND canonical AND (block_hash IS NULL OR block_hash<>$3)`,
-		`UPDATE market_orders SET canonical=false,finalized=false
-		 WHERE chain_id=$1 AND block_number=$2 AND canonical AND (block_hash IS NULL OR block_hash<>$3)`,
-		`UPDATE src20_markets SET canonical=false,finalized=false
-		 WHERE chain_id=$1 AND creation_block=$2 AND source='factory' AND canonical
-		   AND (creation_block_hash IS NULL OR creation_block_hash<>$3)`,
 		`UPDATE src20_balance_deltas SET canonical=false,finalized=false
 		 WHERE chain_id=$1 AND block_number=$2 AND canonical
 		   AND execution_id IN (SELECT id FROM svm_executions WHERE chain_id=$1 AND block_number=$2 AND block_hash<>$3 AND canonical)`,
@@ -617,10 +503,6 @@ func (s *Store) markFinalized(ctx context.Context, tx pgx.Tx, height uint64) err
 		`UPDATE src20_tokens SET finalized=true WHERE chain_id=$1 AND canonical AND deployment_block<=$2`,
 		`UPDATE src20_transfers SET finalized=true WHERE chain_id=$1 AND canonical AND block_number<=$2`,
 		`UPDATE src20_balance_deltas SET finalized=true WHERE chain_id=$1 AND canonical AND block_number<=$2`,
-		`UPDATE market_orders SET finalized=true WHERE chain_id=$1 AND canonical AND block_number<=$2`,
-		`UPDATE market_order_fills SET finalized=true WHERE chain_id=$1 AND canonical AND block_number<=$2`,
-		`UPDATE market_order_cancellations SET finalized=true WHERE chain_id=$1 AND canonical AND block_number<=$2`,
-		`UPDATE src20_markets SET finalized=true WHERE chain_id=$1 AND canonical AND creation_block<=$2`,
 		`UPDATE svm_executions SET finalized=true WHERE chain_id=$1 AND canonical AND block_number<=$2`,
 		`UPDATE svm_events l SET finalized=true FROM svm_executions e
 		 WHERE l.execution_id=e.id AND e.chain_id=$1 AND e.canonical AND e.block_number<=$2`,
@@ -645,10 +527,6 @@ func (s *Store) Rewind(ctx context.Context, fromBlock uint64) error {
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	statements := []string{
-		`UPDATE market_order_cancellations SET canonical=false,finalized=false WHERE chain_id=$1 AND block_number>=$2 AND canonical`,
-		`UPDATE market_order_fills SET canonical=false,finalized=false WHERE chain_id=$1 AND block_number>=$2 AND canonical`,
-		`UPDATE market_orders SET canonical=false,finalized=false WHERE chain_id=$1 AND block_number>=$2 AND canonical`,
-		`UPDATE src20_markets SET canonical=false,finalized=false WHERE chain_id=$1 AND creation_block>=$2 AND source='factory' AND canonical`,
 		`UPDATE src20_balance_deltas SET canonical=false,finalized=false WHERE chain_id=$1 AND block_number>=$2 AND canonical`,
 		`UPDATE src20_transfers SET canonical=false,finalized=false WHERE chain_id=$1 AND block_number>=$2 AND canonical`,
 		`UPDATE src20_tokens SET canonical=false,finalized=false WHERE chain_id=$1 AND deployment_block>=$2 AND canonical`,

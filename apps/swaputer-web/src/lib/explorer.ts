@@ -1,9 +1,6 @@
 import { tokenAmount } from "./format";
 import { subscribeExplorerRealtime } from "./realtime";
 
-const TRANSFER_TOPIC = "0xbc7a322f72742a0c810e1f76615f57ed3a5bbfcbd956d3d451b3158968faace9";
-const APPROVAL_TOPIC = "0xf6d2c55c8d7458b3b22f5534fd41ebe91e2a7da94922c17c1fe9e4d209dca04a";
-
 export const EXPLORER_API = String(
   import.meta.env.VITE_SVM_API_URL || (import.meta.env.DEV ? "http://127.0.0.1:8080" : "/api")
 ).replace(/\/+$/, "");
@@ -41,7 +38,6 @@ export interface LatestEvent {
   blockTime: string;
   emitter: string;
   event: string;
-  amount?: string;
 }
 
 export interface EventDetail {
@@ -103,16 +99,12 @@ export interface TokenSummary {
   finalized: boolean;
 }
 
-export type ContractStandard = "src20" | "unclassified";
-
 export interface ContractSummary {
   programId: string;
   codeHash: string;
   creator: string;
   deploymentBlock: number;
-  standard: ContractStandard;
-  name?: string;
-  symbol?: string;
+  creationTransactionHash: string;
   canonical: boolean;
   finalized: boolean;
 }
@@ -127,24 +119,6 @@ export interface TokenHolder {
   balance: string;
 }
 
-export interface AddressBalance {
-  programId: string;
-  name: string;
-  symbol: string;
-  decimals: number;
-  balance: string;
-  totalSupply: string;
-}
-
-export interface AddressDetail {
-  query: string;
-  accountId: string;
-  evmAddress?: string;
-  transactionCount?: number;
-  balances: AddressBalance[];
-  transactions: TransactionSummary[];
-}
-
 export interface TransferDetail {
   transactionHash: string;
   blockNumber: number;
@@ -155,6 +129,14 @@ export interface TransferDetail {
   mint: boolean;
   burn: boolean;
   finalized: boolean;
+}
+
+export interface AddressDetail {
+  query: string;
+  accountId: string;
+  evmAddress?: string;
+  transactionCount?: number;
+  transactions: TransactionSummary[];
 }
 
 type Items<T> = { items: T[] };
@@ -185,8 +167,8 @@ export const explorerApi = {
     if (cursor) params.set("cursor", cursor);
     return get<CursorPage<TransactionSummary>>(`/v1/addresses/${encodeURIComponent(address)}/transactions?${params}`);
   },
-  contracts: (standard: "all" | ContractStandard = "all", limit = 50, cursor?: string) => {
-    const params = new URLSearchParams({ standard, limit: String(limit) });
+  contracts: (limit = 50, cursor?: string) => {
+    const params = new URLSearchParams({ limit: String(limit) });
     if (cursor) params.set("cursor", cursor);
     return get<CursorPage<ContractSummary>>(`/v1/contracts?${params}`);
   },
@@ -196,8 +178,6 @@ export const explorerApi = {
     if (cursor) params.set("cursor", cursor);
     return get<CursorPage<TransactionSummary>>(`/v1/contracts/${encodeURIComponent(program)}/transactions?${params}`);
   },
-  tokens: (limit = 50) => get<Items<TokenSummary>>(`/v1/src20?limit=${limit}`).then((value) => value.items),
-  token: (program: string) => get<TokenSummary>(`/v1/src20/${encodeURIComponent(program)}`),
   holders: (program: string, limit = 50, cursor?: string) => {
     const params = new URLSearchParams({ limit: String(limit) });
     if (cursor) params.set("cursor", cursor);
@@ -241,11 +221,4 @@ export function formatCount(value: number | string | null | undefined): string {
 
 export function formatUnitsExact(value: string, decimals: number, precision = 6): string {
   return tokenAmount(value, decimals, precision);
-}
-
-export function eventName(event: EventDetail): string {
-  const topic = event.topics[0]?.toLowerCase();
-  if (topic === TRANSFER_TOPIC) return "Transfer";
-  if (topic === APPROVAL_TOPIC) return "Approval";
-  return event.kind === "application" ? "ApplicationEvent" : event.kind;
 }

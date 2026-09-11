@@ -22,8 +22,7 @@ func writeActiveReleaseFixture(t *testing.T, transform func(string) string) stri
     "poolFee":3000,"tickSpacing":60
   }},
   "core":{"worldId":%[2]q,"kernel":%[1]q,"startBlock":1},
-  "programs":{"defaultSrc20":{"codeHash":%[2]q},"openMintSrc20CodeHash":%[2]q,"seth":{"codeHash":%[2]q}},
-  "applications":{"marketFactory":%[1]q,"referenceMarket":%[1]q},
+  "programs":{"defaultSrc20":{"codeHash":%[2]q},"openMintSrc20CodeHash":%[2]q},
   "indexer":{"confirmations":1,"reorgDepth":1,"backfillBatch":1,"reconcileInterval":"1s"},
   "integrity":{"manifestHash":%[2]q}
 }`, address, hash)

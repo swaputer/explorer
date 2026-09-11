@@ -47,14 +47,7 @@ type activeRelease struct {
 			CodeHash string `json:"codeHash"`
 		} `json:"defaultSrc20"`
 		OpenMintSRC20CodeHash string `json:"openMintSrc20CodeHash"`
-		SETH                  struct {
-			CodeHash string `json:"codeHash"`
-		} `json:"seth"`
 	} `json:"programs"`
-	Applications struct {
-		MarketFactory   string `json:"marketFactory"`
-		ReferenceMarket string `json:"referenceMarket"`
-	} `json:"applications"`
 	Indexer struct {
 		Confirmations     uint64 `json:"confirmations"`
 		ReorgDepth        uint64 `json:"reorgDepth"`
@@ -111,8 +104,6 @@ func loadActiveRelease() (activeRelease, error) {
 	}
 	addresses := []string{
 		release.Core.Kernel,
-		release.Applications.MarketFactory,
-		release.Applications.ReferenceMarket,
 		release.Upstream.UniswapV4.PoolManager,
 		release.Upstream.UniswapV4.PositionManager,
 		release.Upstream.UniswapV4.Permit2,
@@ -141,7 +132,6 @@ func loadActiveRelease() (activeRelease, error) {
 		release.Core.WorldID,
 		release.Programs.DefaultSRC20.CodeHash,
 		release.Programs.OpenMintSRC20CodeHash,
-		release.Programs.SETH.CodeHash,
 		release.Integrity.ManifestHash,
 	} {
 		decoded, err := hexutil.Decode(value)

@@ -22,8 +22,6 @@ type Config struct {
 	ReadinessMaxLag       uint64
 	DatabaseURL           string
 	KernelAddress         common.Address
-	MarketFactoryAddress  common.Address
-	MarketAddresses       []common.Address
 	WorldID               common.Hash
 	TokenCodeHashes       map[common.Hash]struct{}
 	OpenMintSRC20CodeHash common.Hash
@@ -72,7 +70,7 @@ func Load() (Config, error) {
 		return Config{}, valueError("SVM_RECONCILE_INTERVAL", err)
 	}
 
-	wsURLs, err := rpcURLs("SVM_RPC_WS_URL", "SVM_RPC_WS_FALLBACK_URLS", "ws", "wss")
+	wsURLs, err := optionalRPCURLs("SVM_RPC_WS_URL", "SVM_RPC_WS_FALLBACK_URLS", "ws", "wss")
 	if err != nil {
 		return Config{}, err
 	}
@@ -93,21 +91,14 @@ func Load() (Config, error) {
 		return Config{}, errors.New("SVM_DATABASE_URL is required")
 	}
 	kernelText := release.Core.Kernel
-	marketFactoryText := release.Applications.MarketFactory
-	marketAddressTexts := []string{release.Applications.ReferenceMarket}
 	for name, expected := range map[string]string{
-		"SVM_KERNEL_ADDRESS":         kernelText,
-		"SVM_MARKET_FACTORY_ADDRESS": marketFactoryText,
-		"SVM_WORLD_ID":               release.Core.WorldID,
+		"SVM_KERNEL_ADDRESS": kernelText,
+		"SVM_WORLD_ID":       release.Core.WorldID,
 	} {
 		if err := requireEnvironmentMatch(name, expected); err != nil {
 			return Config{}, err
 		}
 	}
-	if err := requireEnvironmentListMatch("SVM_MARKET_ADDRESSES", marketAddressTexts); err != nil {
-		return Config{}, err
-	}
-	marketAddresses := []common.Address{common.HexToAddress(release.Applications.ReferenceMarket)}
 	worldText := release.Core.WorldID
 	worldBytes, worldErr := hexutil.Decode(worldText)
 	if worldErr != nil || len(worldBytes) != common.HashLength || common.BytesToHash(worldBytes) == (common.Hash{}) {
@@ -120,7 +111,6 @@ func Load() (Config, error) {
 	}
 	tokenHashTexts := []string{
 		release.Programs.DefaultSRC20.CodeHash,
-		release.Programs.SETH.CodeHash,
 		release.Programs.OpenMintSRC20CodeHash,
 	}
 	if err := requireEnvironmentListMatch("SVM_TOKEN_CODE_HASHES", tokenHashTexts); err != nil {
@@ -139,8 +129,6 @@ func Load() (Config, error) {
 		ReadinessMaxLag:       readinessMaxLag,
 		DatabaseURL:           databaseURL,
 		KernelAddress:         common.HexToAddress(kernelText),
-		MarketFactoryAddress:  common.HexToAddress(marketFactoryText),
-		MarketAddresses:       marketAddresses,
 		WorldID:               common.BytesToHash(worldBytes),
 		TokenCodeHashes:       tokenCodeHashes,
 		OpenMintSRC20CodeHash: common.HexToHash(release.Programs.OpenMintSRC20CodeHash),
@@ -216,6 +204,14 @@ func rpcURLs(primaryName, fallbackName string, schemes ...string) ([]string, err
 		result = append(result, raw)
 	}
 	return result, nil
+}
+
+func optionalRPCURLs(primaryName, fallbackName string, schemes ...string) ([]string, error) {
+	primary := strings.TrimSpace(os.Getenv(primaryName))
+	if primary == "" {
+		return []string{}, nil
+	}
+	return rpcURLs(primaryName, fallbackName, schemes...)
 }
 
 func uintValue(name string, fallback uint64) (uint64, error) {

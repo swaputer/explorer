@@ -40,26 +40,25 @@ test("standalone app routes and views are not bundled into Explorer", () => {
 
 test("external product links use the canonical destinations", () => {
   const header = source("../src/components/AppHeader.vue");
-  const footer = source("../src/components/AppFooter.vue");
   const docsRedirect = source("../src/views/DocsRedirectView.vue");
   const links = source("../src/lib/links.ts");
 
   assert.match(header, /DOCS_URL, GITHUB_URL, STUDIO_URL/);
-  assert.match(footer, /DOCS_URL, GITHUB_URL/);
   assert.match(docsRedirect, /window\.location\.replace\(DOCS_URL\)/);
   assert.match(links, /https:\/\/github\.com\/swaputer/);
   assert.match(links, /http:\/\/127\.0\.0\.1:4177\//);
   assert.match(links, /http:\/\/127\.0\.0\.1:4176\//);
-  assert.doesNotMatch(`${header}\n${footer}`, /rel="noreferrer"/);
-  assert.match(`${header}\n${footer}`, /rel="noopener noreferrer"/);
+  assert.doesNotMatch(header, /rel="noreferrer"/);
+  assert.match(header, /rel="noopener noreferrer"/);
 });
 
 test("production builds default to the same-origin read-only API", () => {
   const explorer = source("../src/lib/explorer.ts");
   const packageManifest = source("../package.json");
   assert.match(explorer, /import\.meta\.env\.DEV \? "http:\/\/127\.0\.0\.1:8080" : "\/api"/);
-  assert.match(explorer, /0xbc7a322f72742a0c810e1f76615f57ed3a5bbfcbd956d3d451b3158968faace9/);
-  assert.match(explorer, /0xf6d2c55c8d7458b3b22f5534fd41ebe91e2a7da94922c17c1fe9e4d209dca04a/);
+  assert.match(explorer, /\/v1\/src20\/\$.*\/holders/);
+  assert.match(explorer, /\/v1\/src20\/\$.*\/transfers/);
+  assert.doesNotMatch(explorer, /\/v1\/market/);
   assert.doesNotMatch(packageManifest, /"ethers"/);
 });
 

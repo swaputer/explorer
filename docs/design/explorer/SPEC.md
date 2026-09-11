@@ -1,7 +1,7 @@
 # Explorer visual specification
 
 The four concept images in this directory are the implementation source of
-truth for Explorer, transaction, address and SRC20 detail surfaces.
+truth for Explorer, transaction, address, contract and SRC20 detail surfaces.
 
 ## Design tokens
 
@@ -35,14 +35,16 @@ truth for Explorer, transaction, address and SRC20 detail surfaces.
 
 ## Visible copy lock
 
-- Header: `Overview`, `Contracts`, `Studio`, `Computer`.
+- Header: `Overview`, `Transactions`, `Contracts`, `Developer`.
 - Explorer: search placeholder `Search transaction hash, address or SVM
   account`, `Search`, `Recent SVM transactions`, `Latest Events`.
 - Transaction: `Explorer`, `Transaction`, `SVM execution`, `Events`, `Raw
   receipt`.
-- Address: `Explorer`, `Address`, `SRC20 balances`, `SVM transactions`,
-  `Transactions`, `Orders`.
-- SRC20 detail: `SRC20`, `Holders`, `Transfers`, `Recent transfers`, `Mint`.
+- Address: `Explorer`, `Address`, `SVM transactions`, `Transactions`.
+- Contract: `Contract`, `Program ID`, `Code hash`, `Creator`, `Creation
+  transaction`, `Deployment`, `Contract transactions`.
+- SRC20 contract detail: `Total supply`, `Holders`, `Decimals`, `Transfers`,
+  `Transactions`.
 
 No marketing subtitle, eyebrow, fake metric, chart or explanatory hero copy is
 allowed on these screens.

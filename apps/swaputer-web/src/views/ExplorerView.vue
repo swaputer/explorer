@@ -2,7 +2,6 @@
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { RouterLink } from "vue-router";
 import { ArrowRight } from "@lucide/vue";
-import AppFooter from "@/components/AppFooter.vue";
 import { toast } from "@/composables/useToast";
 import ExplorerSearch from "@/components/ExplorerSearch.vue";
 import SvmTransactionTable from "@/components/SvmTransactionTable.vue";
@@ -56,6 +55,5 @@ onBeforeUnmount(() => unsubscribe?.());
       <RouterLink class="protocol-more" to="/transactions">View all transactions <ArrowRight :size="15" aria-hidden="true" /></RouterLink>
     </section>
 
-    <AppFooter />
   </main>
 </template>

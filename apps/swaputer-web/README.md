@@ -4,7 +4,7 @@ Vue 3 + Vite protocol explorer for Swaputer.
 
 ## Routes
 
-- `/contracts` — all deployed Mini Contracts, with standard-aware details
+- `/contracts` — all deployed SVM programs and their indexed activity
 - `/transactions`, `/tx/:hash`, `/address/:address` — indexed activity and details
 - `/docs` — link to the standalone protocol documentation
 

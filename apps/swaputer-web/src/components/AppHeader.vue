@@ -38,6 +38,7 @@ onBeforeUnmount(() => {
     <RouterLink class="brand" to="/" aria-label="Swaputer home"><BrandMark /><span>Swaputer</span></RouterLink>
     <nav class="site-nav" aria-label="Primary">
       <RouterLink to="/" :class="{ active: route.path === '/' }">Overview</RouterLink>
+      <RouterLink to="/transactions" :class="{ active: route.path.startsWith('/transaction') || route.path.startsWith('/tx/') }">Transactions</RouterLink>
       <RouterLink to="/contracts" :class="{ active: route.path.startsWith('/contract') }">Contracts</RouterLink>
       <div ref="developerMenu" class="developer-menu">
         <button

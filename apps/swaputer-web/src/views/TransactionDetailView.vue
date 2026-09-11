@@ -2,50 +2,36 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { Check, Copy } from "@lucide/vue";
-import AppFooter from "@/components/AppFooter.vue";
 import { toast } from "@/composables/useToast";
 import ExplorerSearch from "@/components/ExplorerSearch.vue";
-import { nativeAmount, tokenAmount } from "@/lib/format";
+import { nativeAmount } from "@/lib/format";
 import {
-  explorerApi, formatCount, formatUnitsExact, eventName, shortHex,
-  type TokenSummary, type TransactionDetail
+  explorerApi, formatCount, formatUnitsExact, shortHex, type TransactionDetail
 } from "@/lib/explorer";
 
 type DetailTab = "overview" | "executions" | "events" | "input";
 
 const route = useRoute();
 const detail = ref<TransactionDetail | null>(null);
-const eventTokens = ref<Record<string, TokenSummary>>({});
 const loading = ref(true);
 const copied = ref<string | null>(null);
 const activeTab = ref<DetailTab>("overview");
 
 const hash = computed(() => String(route.params.hash || ""));
 const executionStatus = computed(() => detail.value?.finalized ? "Finalized" : detail.value?.canonical ? "Confirming" : "Not canonical");
-const events = computed(() => detail.value?.executions.flatMap((execution) => execution.events.map((event) => {
-  const token = eventTokens.value[event.emitter.toLowerCase()];
-  const isTransfer = eventName(event) === "Transfer" && Boolean(token);
-  let amount: string | null = null;
-  if (isTransfer && token) {
-    try { amount = tokenAmount(BigInt(event.data), token.decimals); } catch { amount = null; }
-  }
-  return { ...event, executionId: execution.id, executionHeight: execution.executionHeight, token, isTransfer, amount };
-})) ?? []);
+const events = computed(() => detail.value?.executions.flatMap((execution) => execution.events.map((event) => ({
+  ...event,
+  executionId: execution.id,
+  executionHeight: execution.executionHeight
+}))) ?? []);
 const executedBytes = computed(() => detail.value?.executions.reduce((total, execution) => total + execution.executedBytes, 0) ?? 0);
 const dateLabel = (value: string) => new Date(value).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "medium", timeZone: "UTC" }) + " UTC";
 
 async function load() {
   loading.value = true;
   activeTab.value = "overview";
-  eventTokens.value = {};
   try {
-    const nextDetail = await explorerApi.transaction(hash.value);
-    detail.value = nextDetail;
-    const emitters = [...new Set(nextDetail.executions.flatMap((execution) => execution.events.map((event) => event.emitter.toLowerCase())))];
-    const resolved = await Promise.all(emitters.map(async (emitter) => {
-      try { return await explorerApi.token(emitter); } catch { return null; }
-    }));
-    eventTokens.value = Object.fromEntries(resolved.filter((token): token is TokenSummary => token !== null).map((token) => [token.programId.toLowerCase(), token]));
+    detail.value = await explorerApi.transaction(hash.value);
   }
   catch { detail.value = null; toast.error("Transaction not found in the SVM index."); }
   finally { loading.value = false; }
@@ -158,20 +144,12 @@ watch(hash, load);
       <section v-else-if="activeTab === 'events'" class="tx-tab-content">
         <article v-for="event in events" :key="`${event.executionId}-${event.index}`" class="tx-detail-card tx-event-card">
           <header><div><span>Event</span><strong>#{{ event.index }}</strong></div><small>Execution #{{ formatCount(event.executionHeight) }}</small></header>
-          <dl v-if="event.isTransfer && event.token" class="tx-detail-rows">
-            <div><dt>Token</dt><dd><RouterLink class="protocol-link" :to="`/contract/${event.token.programId}`">{{ event.token.symbol || event.token.name || 'SRC20' }}</RouterLink></dd></div>
-            <div><dt>Event</dt><dd>Transfer</dd></div>
-            <div><dt>From</dt><dd><RouterLink class="protocol-link protocol-mono" :to="`/address/${event.topics[1]}`">{{ event.topics[1] || '—' }}</RouterLink></dd></div>
-            <div><dt>To</dt><dd><RouterLink class="protocol-link protocol-mono" :to="`/address/${event.topics[2]}`">{{ event.topics[2] || '—' }}</RouterLink></dd></div>
-            <div><dt>Amount</dt><dd class="tx-token-amount">{{ event.amount || '—' }} {{ event.token.symbol }}</dd></div>
-          </dl>
-          <dl v-else class="tx-detail-rows">
+          <dl class="tx-detail-rows">
             <div><dt>Address</dt><dd><RouterLink class="protocol-link protocol-mono" :to="`/contract/${event.emitter}`">{{ event.emitter }}</RouterLink></dd></div>
-            <div><dt>Event</dt><dd>{{ eventName(event) }}</dd></div>
+            <div><dt>Record type</dt><dd>{{ event.kind === 'application' ? 'Application event' : event.kind }}</dd></div>
             <div><dt>Topics</dt><dd class="tx-topic-list"><code v-for="(topic, index) in event.topics" :key="topic"><span>{{ index }}</span>{{ topic }}</code><span v-if="!event.topics.length">—</span></dd></div>
             <div><dt>Data</dt><dd><code class="tx-long-data">{{ event.data }}</code></dd></div>
           </dl>
-          <details v-if="event.isTransfer" class="tx-payload"><summary>Raw event data</summary><code>{{ event.data }}</code></details>
         </article>
         <div v-if="!events.length" class="tx-empty-state">No events were emitted by this transaction.</div>
       </section>
@@ -181,6 +159,5 @@ watch(hash, load);
         <div class="tx-input-data"><code>{{ detail.input }}</code><button type="button" @click="copy(detail.input)"><Check v-if="copied === detail.input" :size="15" /><Copy v-else :size="15" />Copy input</button></div>
       </section>
     </template>
-    <AppFooter />
   </main>
 </template>

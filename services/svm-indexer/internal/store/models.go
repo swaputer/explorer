@@ -38,65 +38,8 @@ type Batch struct {
 	Headers      map[uint64]*types.Header
 	Transactions map[common.Hash]Transaction
 	Executions   []chain.Execution
-	MarketEvents []chain.MarketEvent
 	Errors       []IngestionError
 	FinalizedTo  uint64
-}
-
-type MarketBinding struct {
-	Market        common.Address
-	Token         common.Hash
-	Escrow        common.Hash
-	TokenCodeHash common.Hash
-}
-
-type MarketSummary struct {
-	ProgramID     string `json:"programId"`
-	MarketAddress string `json:"marketAddress"`
-	EscrowID      string `json:"escrowId"`
-	Name          string `json:"name"`
-	Symbol        string `json:"symbol"`
-	Decimals      uint32 `json:"decimals"`
-	BestBidWei    string `json:"bestBidWei,omitempty"`
-	BestAskWei    string `json:"bestAskWei,omitempty"`
-	OpenOrders    uint64 `json:"openOrders"`
-	LastTradeTime string `json:"lastTradeTime,omitempty"`
-}
-
-type MarketOrder struct {
-	OrderID         string `json:"orderId"`
-	ProgramID       string `json:"programId"`
-	MarketAddress   string `json:"marketAddress"`
-	Side            string `json:"side"`
-	Status          string `json:"status"`
-	Maker           string `json:"maker"`
-	Taker           string `json:"taker,omitempty"`
-	Amount          string `json:"amount"`
-	UnitPriceWei    string `json:"unitPriceWei"`
-	PriceWei        string `json:"priceWei"`
-	VMETHAmount     string `json:"vmEthAmount"`
-	Expiry          uint64 `json:"expiry"`
-	BlockNumber     uint64 `json:"blockNumber"`
-	TransactionHash string `json:"transactionHash"`
-	Finalized       bool   `json:"finalized"`
-	LogIndex        uint   `json:"-"`
-}
-
-type MarketTrade struct {
-	OrderID         string `json:"orderId"`
-	ProgramID       string `json:"programId"`
-	MarketAddress   string `json:"marketAddress"`
-	Side            string `json:"side"`
-	Seller          string `json:"seller"`
-	Buyer           string `json:"buyer"`
-	Amount          string `json:"amount"`
-	PriceWei        string `json:"priceWei"`
-	UnitPriceWei    string `json:"unitPriceWei"`
-	BlockNumber     uint64 `json:"blockNumber"`
-	BlockTime       string `json:"blockTime"`
-	TransactionHash string `json:"transactionHash"`
-	Finalized       bool   `json:"finalized"`
-	LogIndex        uint   `json:"-"`
 }
 
 type Checkpoint struct {
@@ -193,16 +136,13 @@ type TokenSummary struct {
 }
 
 // ContractSummary is the canonical deployment record exposed by the explorer.
-// Standard is deliberately classification-only: an unclassified program is still
-// a valid Mini Contract, but the indexer does not infer an application interface.
+// The explorer intentionally treats every deployment as a generic SVM program.
 type ContractSummary struct {
 	ProgramID       string `json:"programId"`
 	CodeHash        string `json:"codeHash"`
 	Creator         string `json:"creator"`
 	DeploymentBlock uint64 `json:"deploymentBlock"`
-	Standard        string `json:"standard"`
-	Name            string `json:"name,omitempty"`
-	Symbol          string `json:"symbol,omitempty"`
+	CreationTxHash  string `json:"creationTransactionHash"`
 	Canonical       bool   `json:"canonical"`
 	Finalized       bool   `json:"finalized"`
 	LogIndex        uint   `json:"-"`
@@ -248,7 +188,6 @@ type LatestEvent struct {
 	BlockTime       string `json:"blockTime"`
 	Emitter         string `json:"emitter"`
 	Event           string `json:"event"`
-	Amount          string `json:"amount,omitempty"`
 }
 
 type TransferDetail struct {

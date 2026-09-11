@@ -29,6 +29,18 @@ func TestRPCURLsRejectInvalidFallback(t *testing.T) {
 	}
 }
 
+func TestOptionalRPCURLsAllowMissingPrimary(t *testing.T) {
+	t.Setenv("PRIMARY", "")
+	t.Setenv("FALLBACKS", "https://secondary.example")
+	got, err := optionalRPCURLs("PRIMARY", "FALLBACKS", "http", "https")
+	if err != nil {
+		t.Fatalf("optional rpc URLs: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("got %v want []", got)
+	}
+}
+
 func TestOpenMintSRC20CodeHashIsExact(t *testing.T) {
 	expected := common.HexToHash("0xaedd7bd1543d57afaeb94f6b46e28ba4c1ef7cdd2ad4affca011b17056036869")
 	configured := Config{OpenMintSRC20CodeHash: expected}
