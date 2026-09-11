@@ -8,7 +8,7 @@ test("the protocol explorer header stays read-only", () => {
   const header = source("../src/components/AppHeader.vue");
 
   assert.doesNotMatch(header, /useWallet|Connect wallet|window\.ethereum/);
-  assert.doesNotMatch(header, />Apps<|>Computer</);
+  assert.doesNotMatch(header, />Apps<|>Ecosystem</);
   assert.match(header, />Overview</);
   assert.match(header, />Contracts</);
   assert.match(header, /Developer/);
@@ -19,16 +19,16 @@ test("the protocol explorer header stays read-only", () => {
 
 test("standalone app routes and views are not bundled into Explorer", () => {
   const router = source("../src/router.ts");
-  const retiredPaths = ["/minter", "/market", "/bridge", "/computer", "/studio"];
+  const retiredPaths = ["/minter", "/market", "/bridge", "/ecosystem", "/studio"];
 
   for (const path of retiredPaths) assert.doesNotMatch(router, new RegExp(`path: [\"']${path}`));
 
   const retiredFiles = [
     "../src/composables/useWallet.ts",
-    "../src/views/ComputerRedirectView.vue",
+    "../src/views/EcosystemRedirectView.vue",
     "../src/views/StudioRedirectView.vue",
     "../src/views/DocsView.vue",
-    "../src/lib/computer.ts",
+    "../src/lib/ecosystem.ts",
     "../src/lib/config.ts",
     "../src/lib/protocol.ts",
     "../src/lib/releaseScope.ts",
