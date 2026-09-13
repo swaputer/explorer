@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { RouterLink } from "vue-router";
-import ExplorerSearch from "@/components/ExplorerSearch.vue";
 import TablePagination from "@/components/TablePagination.vue";
 import { toast } from "@/composables/useToast";
 import { explorerApi, formatCount, shortHex, type ContractSummary } from "@/lib/explorer";
@@ -50,10 +49,9 @@ onMounted(load);
   <main class="page explorer-page explorer-directory-page contracts-directory-page">
     <div class="directory-topline">
       <header class="detail-heading"><h1>Contracts</h1><p>Mini contracts deployed on the SVM protocol.</p></header>
-      <ExplorerSearch compact />
     </div>
 
-    <section class="protocol-section contracts-directory-surface">
+    <section class="protocol-section contracts-directory-surface directory-data-surface">
       <div class="protocol-table-wrap">
         <table class="protocol-table contracts-directory-table">
           <thead><tr><th>Contract</th><th>Creation transaction</th><th>Block</th><th class="hide-small">Creator</th><th class="hide-small">Code hash</th></tr></thead>

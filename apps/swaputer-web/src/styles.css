@@ -1,14 +1,14 @@
 :root {
-  --white: #fff;
-  --ink: #111214;
-  --muted: #686c74;
-  --subtle: #8b8f97;
-  --soft: #f6f7f9;
-  --rule: #d7d9de;
-  --rule-strong: #aeb1b8;
-  --blue: #3157f5;
-  --blue-hover: #2447d8;
-  --blue-soft: #eef2ff;
+  --white: #fffafb;
+  --ink: #110812;
+  --muted: #7a6a7c;
+  --subtle: #9a899d;
+  --soft: #fff8fd;
+  --rule: #eaddea;
+  --rule-strong: #dcc8dc;
+  --blue: #ff37c7;
+  --blue-hover: #df14a8;
+  --blue-soft: #fff1fb;
   --green: #16a35b;
   --red: #d62f2f;
   --font-sans: Inter, "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

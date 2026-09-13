@@ -62,20 +62,20 @@ test("production builds default to the same-origin read-only API", () => {
   assert.doesNotMatch(packageManifest, /"ethers"/);
 });
 
-test("the document canvas is dark before and after application startup", () => {
+test("the document canvas matches the ecosystem palette before and after application startup", () => {
   const document = source("../index.html");
-  const theme = source("../src/theme-dark.css");
+  const theme = source("../src/explorer-theme.css");
 
-  assert.match(document, /name="theme-color" content="#131313"/);
-  assert.match(document, /html,body,#app\{[^}]*background:#131313/);
-  assert.match(theme, /html,\s*body,\s*#app,\s*\.app-shell\s*\{[^}]*background:\s*var\(--canvas\)/s);
+  assert.match(document, /name="theme-color" content="#fffafb"/);
+  assert.match(document, /html,body,#app\{[^}]*background:#fffafb/);
+  assert.match(theme, /html,\s*body,\s*#app,\s*\.app-shell\s*\{[^}]*radial-gradient/s);
 });
 
-test("each explorer page owns its contextual search", () => {
+test("only the overview owns the explorer search", () => {
   const header = source("../src/components/AppHeader.vue");
   const search = source("../src/components/ExplorerSearch.vue");
-  const views = [
-    "../src/views/ExplorerView.vue",
+  const overview = source("../src/views/ExplorerView.vue");
+  const otherViews = [
     "../src/views/TransactionsView.vue",
     "../src/views/ContractsView.vue",
     "../src/views/AddressDetailView.vue",
@@ -83,9 +83,31 @@ test("each explorer page owns its contextual search", () => {
     "../src/views/TransactionDetailView.vue"
   ].map(source);
 
-  assert.doesNotMatch(header, /ExplorerSearch|header-command-island|global-explorer-query/);
+  assert.doesNotMatch(header, /ExplorerSearch|site-header__search-trigger|searchOpen/);
+  assert.match(overview, /<ExplorerSearch\s+compact/);
   assert.doesNotMatch(header, /event\.metaKey \|\| event\.ctrlKey/);
   assert.doesNotMatch(search, /<kbd/);
   assert.match(search, /class="explorer-search__leading"[^>]*type="submit"/);
-  for (const view of views) assert.match(view, /<ExplorerSearch\s+compact/);
+  for (const view of otherViews) assert.doesNotMatch(view, /ExplorerSearch/);
+});
+
+test("the overview presents twenty recent transactions with the directory link in its heading", () => {
+  const overview = source("../src/views/ExplorerView.vue");
+
+  assert.match(overview, /explorerApi\.transactions\(20\)/);
+  assert.match(overview, /overview-transactions__header[\s\S]*Latest SVM transactions[\s\S]*View all transactions/);
+  assert.doesNotMatch(overview, /class="protocol-more"/);
+});
+
+test("address details expose indexed token holdings without restoring wallet behavior", () => {
+  const address = source("../src/views/AddressDetailView.vue");
+  const explorer = source("../src/lib/explorer.ts");
+
+  assert.match(address, /Token holdings/);
+  assert.match(address, /detail\.balances/);
+  assert.match(address, /holdingsPageSize = 20/);
+  assert.match(address, /:page-count="holdingsPageCount"/);
+  assert.match(address, />Address</);
+  assert.match(explorer, /balances: AddressBalance\[\]/);
+  assert.doesNotMatch(address, /useWallet|Connect wallet|window\.ethereum/);
 });

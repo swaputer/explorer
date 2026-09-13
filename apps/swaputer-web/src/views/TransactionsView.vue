@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { toast } from "@/composables/useToast";
-import ExplorerSearch from "@/components/ExplorerSearch.vue";
 import SvmTransactionTable from "@/components/SvmTransactionTable.vue";
 import TablePagination from "@/components/TablePagination.vue";
 import { explorerApi, type TransactionSummary } from "@/lib/explorer";
@@ -50,9 +49,8 @@ onMounted(() => void load());
   <main class="page explorer-page explorer-directory-page">
     <div class="directory-topline">
       <header class="detail-heading"><h1>Transactions</h1><p>{{ loading ? 'Loading indexed executions…' : `${items.length} latest indexed executions` }}</p></header>
-      <ExplorerSearch compact />
     </div>
-    <section class="protocol-section transaction-directory">
+    <section class="protocol-section transaction-directory directory-data-surface">
       <SvmTransactionTable :items="items" show-actor />
       <p v-if="loading" class="protocol-loading">Loading transactions…</p>
       <TablePagination v-else :page="page" :has-next="Boolean(nextCursor)" :label="rangeLabel" @previous="previous" @next="next" />

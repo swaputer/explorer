@@ -351,6 +351,11 @@ func (s *Server) address(writer http.ResponseWriter, request *http.Request) {
 		writeError(writer, http.StatusBadRequest, "INVALID_SVM_ADDRESS")
 		return
 	}
+	balances, err := s.store.AddressBalances(request.Context(), account)
+	if err != nil {
+		writeError(writer, http.StatusServiceUnavailable, "ADDRESS_BALANCES_UNAVAILABLE")
+		return
+	}
 	transactions, err := s.store.AddressTransactions(request.Context(), account, 25, nil)
 	if err != nil {
 		writeError(writer, http.StatusServiceUnavailable, "ADDRESS_TRANSACTIONS_UNAVAILABLE")
@@ -363,7 +368,7 @@ func (s *Server) address(writer http.ResponseWriter, request *http.Request) {
 	}
 	writeJSON(writer, http.StatusOK, map[string]any{
 		"query": raw, "accountId": strings.ToLower(account.Hex()), "evmAddress": evmAddress,
-		"transactionCount": transactionCount, "transactions": transactions,
+		"transactionCount": transactionCount, "balances": balances, "transactions": transactions,
 	})
 }
 

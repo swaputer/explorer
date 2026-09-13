@@ -131,11 +131,21 @@ export interface TransferDetail {
   finalized: boolean;
 }
 
+export interface AddressBalance {
+  programId: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  balance: string;
+  totalSupply: string;
+}
+
 export interface AddressDetail {
   query: string;
   accountId: string;
   evmAddress?: string;
   transactionCount?: number;
+  balances: AddressBalance[];
   transactions: TransactionSummary[];
 }
 

@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
-import { ArrowUpRight, BookOpen, ChevronDown, Code2, GitFork } from "@lucide/vue";
+import { ArrowUpRight, BookOpen, ChevronDown, Code2, GitFork, Menu, X } from "@lucide/vue";
 import BrandMark from "./BrandMark.vue";
 import { DOCS_URL, GITHUB_URL, STUDIO_URL } from "@/lib/links";
 
 const route = useRoute();
 const developerOpen = ref(false);
+const mobileOpen = ref(false);
+const headerScrolled = ref(false);
 const developerMenu = ref<HTMLElement | null>(null);
 const developerButton = ref<HTMLButtonElement | null>(null);
 
@@ -20,23 +22,47 @@ function onDocumentPointerDown(event: PointerEvent) {
 }
 
 function onDocumentKeyDown(event: KeyboardEvent) {
-  if (event.key === "Escape" && developerOpen.value) closeDeveloperMenu({ restoreFocus: true });
+  if (event.key !== "Escape") return;
+  if (developerOpen.value) closeDeveloperMenu({ restoreFocus: true });
+  mobileOpen.value = false;
+}
+
+function toggleMobileMenu() {
+  mobileOpen.value = !mobileOpen.value;
+}
+
+function updateHeaderScroll() {
+  headerScrolled.value = window.scrollY > 4;
 }
 
 onMounted(() => {
+  updateHeaderScroll();
   document.addEventListener("pointerdown", onDocumentPointerDown);
   document.addEventListener("keydown", onDocumentKeyDown);
+  window.addEventListener("scroll", updateHeaderScroll, { passive: true });
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener("pointerdown", onDocumentPointerDown);
   document.removeEventListener("keydown", onDocumentKeyDown);
+  window.removeEventListener("scroll", updateHeaderScroll);
+});
+
+watch(() => route.fullPath, () => {
+  mobileOpen.value = false;
+  developerOpen.value = false;
 });
 </script>
 <template>
-  <header class="site-header"><div class="site-header__inner">
+  <header class="site-header" :class="{ 'site-header--scrolled': headerScrolled || mobileOpen }"><div class="site-header__inner">
     <RouterLink class="brand" to="/" aria-label="Swaputer home"><BrandMark /><span>Swaputer</span></RouterLink>
-    <nav class="site-nav" aria-label="Primary">
+    <div class="mobile-header-actions">
+      <button class="mobile-nav-toggle" type="button" :aria-label="mobileOpen ? 'Close navigation' : 'Open navigation'" :aria-expanded="mobileOpen" @click="toggleMobileMenu">
+        <X v-if="mobileOpen" :size="22" aria-hidden="true" />
+        <Menu v-else :size="22" aria-hidden="true" />
+      </button>
+    </div>
+    <nav class="site-nav" :class="{ 'site-nav--open': mobileOpen }" aria-label="Primary">
       <RouterLink to="/" :class="{ active: route.path === '/' }">Overview</RouterLink>
       <RouterLink to="/transactions" :class="{ active: route.path.startsWith('/transaction') || route.path.startsWith('/tx/') }">Transactions</RouterLink>
       <RouterLink to="/contracts" :class="{ active: route.path.startsWith('/contract') }">Contracts</RouterLink>
@@ -68,5 +94,6 @@ onBeforeUnmount(() => {
         </Transition>
       </div>
     </nav>
-  </div></header>
+  </div>
+  </header>
 </template>

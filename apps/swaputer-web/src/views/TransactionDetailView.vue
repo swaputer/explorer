@@ -3,7 +3,6 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { Check, Copy } from "@lucide/vue";
 import { toast } from "@/composables/useToast";
-import ExplorerSearch from "@/components/ExplorerSearch.vue";
 import { nativeAmount } from "@/lib/format";
 import {
   explorerApi, formatCount, formatUnitsExact, shortHex, type TransactionDetail
@@ -54,7 +53,6 @@ watch(hash, load);
         <h1>Transaction Details</h1>
         <p>Indexed Ethereum transaction with SVM execution data.</p>
       </header>
-      <ExplorerSearch compact />
     </div>
     <p v-if="loading" class="protocol-loading protocol-loading--page">Loading transaction…</p>
 

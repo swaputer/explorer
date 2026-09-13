@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { Copy } from "@lucide/vue";
-import ExplorerSearch from "@/components/ExplorerSearch.vue";
 import SvmTransactionTable from "@/components/SvmTransactionTable.vue";
 import TablePagination from "@/components/TablePagination.vue";
 import { toast } from "@/composables/useToast";
@@ -160,7 +159,6 @@ watch(program, load);
   <main class="page explorer-page explorer-detail-page contract-detail-page">
     <div class="directory-topline explorer-detail-topline">
       <header class="detail-heading contract-detail-heading"><h1>{{ title }}</h1><p>{{ subtitle }}</p></header>
-      <ExplorerSearch compact />
     </div>
     <p v-if="loading" class="protocol-loading protocol-loading--page">Loading contract…</p>
 
@@ -173,13 +171,12 @@ watch(program, load);
       </section>
 
       <section class="detail-section contract-details-section">
-        <h2>CONTRACT DETAILS</h2>
+        <h2>Contract details</h2>
         <dl class="detail-ledger detail-ledger--two contract-details-ledger">
-          <div><dt>Program ID</dt><dd><code>{{ shortHex(contract.programId, 18, 14) }}</code><button type="button" aria-label="Copy contract program ID" @click="copy(contract.programId)"><Copy :size="13" /></button></dd></div>
+          <div><dt>Address</dt><dd><code>{{ shortHex(contract.programId, 18, 14) }}</code><button type="button" aria-label="Copy address" @click="copy(contract.programId)"><Copy :size="13" /></button></dd></div>
           <div><dt>Code hash</dt><dd><code>{{ shortHex(contract.codeHash, 18, 14) }}</code><button type="button" aria-label="Copy contract code hash" @click="copy(contract.codeHash)"><Copy :size="13" /></button></dd></div>
           <div><dt>Creator</dt><dd><RouterLink class="protocol-link protocol-mono" :to="`/address/${contract.creator}`">{{ shortHex(contract.creator, 18, 14) }}</RouterLink><button type="button" aria-label="Copy contract creator" @click="copy(contract.creator)"><Copy :size="13" /></button></dd></div>
           <div><dt>Creation transaction</dt><dd><RouterLink class="protocol-link protocol-mono" :to="`/tx/${contract.creationTransactionHash}`">{{ shortHex(contract.creationTransactionHash, 18, 14) }}</RouterLink><button type="button" aria-label="Copy creation transaction hash" @click="copy(contract.creationTransactionHash)"><Copy :size="13" /></button></dd></div>
-          <div><dt>Deployment</dt><dd><span class="protocol-mono">Block {{ formatCount(contract.deploymentBlock) }}</span><span :class="['tx-status', { 'tx-status--pending': !contract.finalized }]">{{ contract.finalized ? 'Finalized' : 'Confirming' }}</span></dd></div>
         </dl>
       </section>
 
@@ -208,7 +205,7 @@ watch(program, load);
       </template>
 
       <section v-if="!isSRC20 || tab === 'transactions'" class="protocol-section contract-transactions-section">
-        <h2>CONTRACT TRANSACTIONS</h2>
+        <h2>Contract transactions</h2>
         <SvmTransactionTable :items="transactions" show-actor hide-target />
         <TablePagination v-if="transactions.length" :page="transactionPage" :has-next="Boolean(nextTransactionCursor)" :label="transactionRange" @previous="previousTransactions" @next="nextTransactions" />
       </section>
