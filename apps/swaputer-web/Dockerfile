@@ -10,8 +10,8 @@ RUN npm ci --prefix apps/swaputer-web \
 COPY apps/swaputer-web/ ./apps/swaputer-web/
 
 ARG VITE_SVM_API_URL=/api
-ARG VITE_DOCS_URL=https://docs.swaputer.xyz
-ARG VITE_STUDIO_URL=https://studio.swaputer.xyz
+ARG VITE_DOCS_URL=https://docs.swaputer.com
+ARG VITE_STUDIO_URL=https://studio.swaputer.com
 ENV VITE_SVM_API_URL=$VITE_SVM_API_URL \
     VITE_DOCS_URL=$VITE_DOCS_URL \
     VITE_STUDIO_URL=$VITE_STUDIO_URL
