@@ -68,7 +68,7 @@ func loadActiveRelease() (activeRelease, error) {
 			candidates = append(candidates, filepath.Join("../..", configured))
 		}
 	} else {
-		candidate, err := findUp("deployments/active/base-sepolia.json")
+		candidate, err := findUp("services/svm-indexer/config/ethereum-mainnet.json")
 		if err != nil {
 			return activeRelease{}, err
 		}
@@ -96,7 +96,8 @@ func loadActiveRelease() (activeRelease, error) {
 	if err := json.Unmarshal(data, &release); err != nil {
 		return activeRelease{}, errors.New("active deployment manifest is invalid JSON")
 	}
-	if release.SchemaVersion != "swaputer-active-release/1" || release.Release.Name != "swaputer-v1.2-rc4" || release.Release.ProtocolVersion != "1.2" {
+	supportedRelease := release.Release.Name == "swaputer-v1.2-mainnet" || release.Release.Name == "swaputer-v1.2-rc4"
+	if release.SchemaVersion != "swaputer-active-release/1" || !supportedRelease || release.Release.ProtocolVersion != "1.2" {
 		return activeRelease{}, errors.New("active deployment manifest release is unsupported")
 	}
 	if release.Network.ChainID == 0 || release.Core.StartBlock == 0 || release.Indexer.Confirmations == 0 || release.Indexer.ReorgDepth == 0 || release.Indexer.BackfillBatch == 0 {

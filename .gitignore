@@ -11,6 +11,8 @@ wallet.txt
 *.pfx
 **/node_modules/
 **/dist/
+.wrangler/
+*.tar.gz
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
